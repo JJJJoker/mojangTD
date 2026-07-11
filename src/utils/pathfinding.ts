@@ -1,16 +1,16 @@
 import type { GridCell } from '../types/game'
-import { MAP_CONFIG } from '../config/map'
+import { MAP_CONFIG, WAYPOINTS } from '../config/map'
 
 /**
- * 查找从起点经过矿坑到终点的路径
+ * 查找从起点经过所有必经点到终点的路径
  * 
  * 宝石TD核心玩法:
- * - 敌人必须从起点出发
- * - 经过中心矿坑位置
- * - 然后前往终点
+ * - 敌人必须按顺序经过所有必经点
+ * - 每两个相邻必经点之间使用BFS计算最短路径
+ * - 玩家放置的塔/障碍物会影响路径长度
  * 
  * @param grid - 地图网格
- * @returns 完整路径(起点→矿坑→终点),如果无法到达返回null
+ * @returns 完整路径(经过所有必经点),如果无法到达返回null
  */
 export function findPath(
   grid: GridCell[][],
@@ -24,29 +24,50 @@ export function findPath(
     return null
   }
   
-  // 定义关键点
-  const minePos = MAP_CONFIG.minePos  // 矿坑位置
+  console.log('🗺️ 计算必经点路径:', { 
+    必经点数量: WAYPOINTS.length,
+    必经点列表: WAYPOINTS.map(wp => `(${wp.row},${wp.col})${wp.label ? '-' + wp.label : ''}`)
+  })
   
-  console.log('计算路径:', { start, minePos, end })
+  // 多段BFS:在相邻必经点之间计算最短路径
+  const fullPath: { row: number; col: number }[] = []
   
-  // 第一段: 起点 → 矿坑
-  const pathToMine = findPathSegment(grid, start, minePos)
-  if (!pathToMine) {
-    console.warn('无法找到到矿坑的路径!')
-    return null
+  console.log(`🛤️ 开始计算${WAYPOINTS.length - 1}段路径`)
+  
+  for (let i = 0; i < WAYPOINTS.length - 1; i++) {
+    const currentWaypoint = WAYPOINTS[i]
+    const nextWaypoint = WAYPOINTS[i + 1]
+    
+    console.log(`\n🛤️ 第${i + 1}段: ${currentWaypoint.label || '必经点'}(${currentWaypoint.row},${currentWaypoint.col}) → ${nextWaypoint.label || '必经点'}(${nextWaypoint.row},${nextWaypoint.col})`)
+    
+    // BFS查找两点之间的最短路径
+    const segmentPath = findPathSegment(grid, currentWaypoint, nextWaypoint)
+    
+    if (!segmentPath) {
+      console.warn(`❌ 无法找到第${i + 1}段路径!`)
+      console.log(`可能原因: 障碍物阻挡或路径被完全封锁`)
+      return null
+    }
+    
+    console.log(`✅ 找到第${i + 1}段路径,长度: ${segmentPath.length}`)
+    
+    // 合并路径(避免重复添加连接点)
+    if (fullPath.length === 0) {
+      fullPath.push(...segmentPath)
+    } else {
+      fullPath.push(...segmentPath.slice(1))  // 跳过第一个点(已在上段末尾)
+    }
   }
   
-  // 第二段: 矿坑 → 终点
-  const pathToEnd = findPathSegment(grid, minePos, end)
-  if (!pathToEnd) {
-    console.warn('无法找到从矿坑到终点的路径!')
-    return null
-  }
+  console.log(`\n✅ 完整路径总长度: ${fullPath.length}`)
+  console.log('路径关键点:', [
+    fullPath[0],           // 起点
+    fullPath[Math.floor(fullPath.length / 4)],      // 1/4处
+    fullPath[Math.floor(fullPath.length / 2)],      // 中点
+    fullPath[Math.floor(fullPath.length * 3 / 4)],  // 3/4处
+    fullPath[fullPath.length - 1]                   // 终点
+  ])
   
-  // 合并两段路径(去掉重复的矿坑点)
-  const fullPath = [...pathToMine, ...pathToEnd.slice(1)]
-  
-  console.log('完整路径长度:', fullPath.length)
   return fullPath
 }
 

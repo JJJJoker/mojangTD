@@ -36,15 +36,20 @@ export const ENEMY_TYPES = {
 // 创建敌人的辅助函数
 export function createEnemy(
   type: 'basic' | 'fast' | 'tank',
-  startPosition: { x: number; y: number }
+  startPosition: { x: number; y: number },
+  healthMultiplier: number = 1.0  // 血量倍率(默认1.0)
 ): Enemy {
   const config = ENEMY_TYPES[type]
+  
+  // ✅ 应用血量倍率
+  const actualHealth = Math.floor(config.health * healthMultiplier)
+  
   return {
     id: `enemy_${Date.now()}_${Math.random()}`,
     type,
     position: startPosition,
-    health: config.health,
-    maxHealth: config.health,
+    health: actualHealth,
+    maxHealth: actualHealth,
     speed: config.speed,
     armor: config.armor,
     magicResist: config.magicResist,

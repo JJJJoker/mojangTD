@@ -4,6 +4,7 @@ import { GameCanvas } from './GameCanvas'
 import { GameUI } from './GameUI'
 import { BuildPanel } from './BuildPanel'
 import { SynthesisDialog } from './SynthesisDialog'
+import { usePathfinding } from '../hooks/usePathfinding'
 import type { GemType, GemLevel, Tower } from '../types/game'
 
 export const TowerDefenseGame: React.FC = () => {
@@ -14,11 +15,15 @@ export const TowerDefenseGame: React.FC = () => {
     finalizeTowers,
     synthesizeTowers,
     synthesizeSpecialTower,  // 新增
+    upgradeGameLevel,  // ✅ 新增: 升级游戏等级
     startWave,
     start,
     pause,
     resume
   } = useGameEngine()
+  
+  // ✅ 使用寻路Hook来计算路径
+  const { calculatePath } = usePathfinding()
 
   // 跟踪当前批次放置的塔
   const [currentBatchTowers, setCurrentBatchTowers] = useState<string[]>([])
@@ -60,42 +65,57 @@ export const TowerDefenseGame: React.FC = () => {
   }
 
   const handleCanvasClick = useCallback((gridPos: { row: number; col: number }) => {
-    const { grid } = gameStateRef.current
+    const { grid, towers } = gameStateRef.current
     
-    // 检查点击的位置是否有塔
+    // 检查点击的位置是否有塔或障碍物
     const cell = grid[gridPos.row][gridPos.col]
-    const existingTower = cell.type === 'tower' 
-      ? gameStateRef.current.towers.find(t => t.id === cell.towerId)
-      : null
     
-    if (existingTower) {
-      // 点击的是已有塔
+    if (cell.type === 'tower') {
+      // 点击的是已有塔 - 现有逻辑保持不变
+      const existingTower = towers.find(t => t.id === cell.towerId)
       
-      // 检查是否是当前批次的临时塔
-      const isCurrentBatch = gameStateRef.current.currentBatchTowerIds.includes(existingTower.id)
-      
-      if (isCurrentBatch) {
-        // 是当前批次的临时塔
+      if (existingTower) {
+        const isCurrentBatch = gameStateRef.current.currentBatchTowerIds.includes(existingTower.id)
         
-        // 如果已经放置了5个塔,选择这个塔进行保留决策
-        if (currentBatchTowers.length >= 5) {
-          setSelectedTowerForDecision(existingTower)
-          setShowDecisionDialog(true)
-          console.log('选择临时塔进行保留决策:', existingTower.gemType)
+        if (isCurrentBatch) {
+          if (currentBatchTowers.length >= 5) {
+            setSelectedTowerForDecision(existingTower)
+            setShowDecisionDialog(true)
+          }
         } else {
-          console.log('还需放置更多塔,当前:', currentBatchTowers.length, '/5')
+          setShowSynthesisDialog(true)
         }
-      } else {
-        // 是已保留的塔,打开合成对话框并预选
-        setShowSynthesisDialog(true)
-        // 注意: SynthesisDialog需要支持预选功能,或者用户手动选择
-        console.log('打开合成对话框,已有塔:', existingTower.gemType)
+        
+        return
       }
-      
-      return  // 不继续执行放置逻辑
     }
     
-    // 点击的是空地,执行放置逻辑
+    // ✅ 新增: 点击障碍物,消耗木材删除
+    if (cell.type === 'obstacle') {
+      if (uiState.wood <= 0) {
+        console.warn('木材不足,无法删除障碍物')
+        alert('需要1个木材才能删除障碍物!')
+        return
+      }
+      
+      // 删除障碍物
+      grid[gridPos.row][gridPos.col] = {
+        ...grid[gridPos.row][gridPos.col],
+        type: 'empty'
+      }
+      
+      // 消耗木材
+      setUiState(prev => ({ ...prev, wood: prev.wood - 1 }))
+      
+      // 重新计算路径
+      const newPath = calculatePath()
+      gameStateRef.current.currentPath = newPath
+      
+      console.log(`✅ 已删除障碍物(${gridPos.row},${gridPos.col}),消耗1木材,剩余:${uiState.wood - 1}`)
+      return
+    }
+    
+    // 点击空地,执行放置逻辑 - 现有逻辑保持不变
     if (uiState.gameStatus !== 'preparing') return
     if (!uiState.canPlaceTowers) {
       console.warn('当前波次中不能放置塔')
@@ -131,7 +151,8 @@ export const TowerDefenseGame: React.FC = () => {
     uiState.wood, 
     placeTower, 
     currentBatchTowers.length,
-    gameStateRef
+    gameStateRef,
+    calculatePath
   ])
 
   const handleFinalizeTowers = (keepTowerId: string) => {
@@ -170,6 +191,7 @@ export const TowerDefenseGame: React.FC = () => {
         onPause={handlePause}
         onResume={handleResume}
         onOpenSynthesis={() => setShowSynthesisDialog(true)}
+        onUpgradeGameLevel={upgradeGameLevel}  // ✅ 新增
       />
       
       {/* 游戏主体区域 */}
@@ -183,7 +205,10 @@ export const TowerDefenseGame: React.FC = () => {
         
         {/* 中间Canvas */}
         <div style={{ position: 'relative' }}>
-          <GameCanvas onClick={handleCanvasClick} />
+          <GameCanvas 
+            onClick={handleCanvasClick} 
+            currentPath={gameStateRef.current.currentPath}
+          />
           
           {/* 决策对话框 */}
           {showDecisionDialog && selectedTowerForDecision && (

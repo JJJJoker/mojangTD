@@ -4,12 +4,31 @@ export interface Position {
   y: number
 }
 
-// 宝石塔类型
-export type GemType = 'amethyst' | 'diamond' | 'topaz' | 'opal'
+// 宝石塔类型 - 8种基础宝石
+export type GemType = 
+  | 'amethyst'    // 紫水晶 - 高伤害单体
+  | 'diamond'     // 钻石 - 快速多目标
+  | 'topaz'       // 黄玉 - 溅射范围
+  | 'opal'        // 蛋白石 - 减速
+  | 'ruby'        // 红宝石 - 纯粹伤害
+  | 'sapphire'    // 蓝宝石 - 魔法穿透
+  | 'emerald'     // 翡翠 - 毒素持续伤害
+  | 'obsidian'    // 黑曜石 - 眩晕/冻结
+
+// 宝石等级
 export type GemLevel = 'chipped' | 'flawed' | 'normal' | 'flawless'
 
-// 特殊塔类型
-export type SpecialTowerType = 'silver' | 'malachite' | 'starRuby'
+// 塔等级(与GemLevel相同,用于概率配置)
+export type TowerLevel = 'chipped' | 'regular' | 'polished'
+
+// 特殊塔类型 - 6种合成塔
+export type SpecialTowerType = 
+  | 'silver'      // 银塔
+  | 'malachite'   // 孔雀石
+  | 'starRuby'    // 星红宝石
+  | 'moonstone'   // 月长石
+  | 'jade'        // 玉石
+  | 'onyx'        // 玛瑙
 
 // 敌人类
 export interface Enemy {
@@ -27,6 +46,15 @@ export interface Enemy {
   reachedEnd?: boolean // 是否到达终点
   slowTimer?: number   // 减速剩余时间(ms)
   isDead?: boolean     // 是否已死亡
+  
+  // 特效相关属性
+  poisonEffects?: Array<{
+    damage: number
+    duration: number
+    startTime: number
+  }>
+  isStunned?: boolean
+  stunEndTime?: number
 }
 
 // 防御塔类
@@ -42,10 +70,19 @@ export interface Tower {
   attackSpeed: number         // 攻击间隔(ms)
   lastAttackTime: number
   damageType: 'physical' | 'magic' | 'pure'  // 伤害类型
-  slowEffect?: number         // 减速效果(0-1)
-  splashRadius?: number       // 溅射半径
-  multiTarget?: number        // 多目标数量
-  targetId?: string           // 当前锁定目标
+  
+  // 特效属性
+  multiTarget?: number          // 多目标数量
+  splashRadius?: number         // 溅射半径
+  slowEffect?: number           // 减速效果
+  critChance?: number           // 暴击率
+  critMultiplier?: number       // 暴击倍率
+  poisonDamage?: number         // 毒素伤害
+  poisonDuration?: number       // 毒素持续时间(ms)
+  stunChance?: number           // 眩晕概率
+  stunDuration?: number         // 眩晕持续时间(ms)
+  pierce?: boolean              // 是否穿透
+  targetId?: string             // 当前锁定目标
 }
 
 // 子弹类
@@ -56,8 +93,17 @@ export interface Bullet {
   damage: number
   damageType: 'physical' | 'magic' | 'pure'
   speed: number
+  
+  // 特效属性
   splashRadius?: number
   slowEffect?: number
+  critChance?: number
+  critMultiplier?: number
+  poisonDamage?: number
+  poisonDuration?: number
+  stunChance?: number
+  stunDuration?: number
+  pierce?: boolean
 }
 
 // 地图格子
@@ -80,6 +126,7 @@ export interface WaveConfig {
   waveNumber: number
   enemies: WaveEnemyConfig[]
   isBossWave?: boolean
+  healthMultiplier?: number  // 血量倍率(默认1.0)
 }
 
 // 游戏状态
@@ -98,4 +145,19 @@ export interface GameState {
   selectedGem: GemType | null  // 当前选中的宝石类型
   currentPath: { row: number; col: number }[] | null  // 当前BFS路径
   availableGems: GemType[]  // 当前波可用的5个随机宝石
+}
+
+// UI状态接口
+export interface UIState {
+  wood: number
+  gold: number
+  lives: number
+  wave: number
+  gameStatus: 'preparing' | 'playing' | 'completed'
+  canPlaceTowers: boolean
+  currentWave: number
+  selectedTowerId: string | null
+  storedTowerIds: string[]
+  currentBatchTowerIds: string[]
+  gameLevel: number  // 游戏等级,影响塔生成概率
 }

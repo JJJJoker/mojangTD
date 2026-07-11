@@ -1,45 +1,15 @@
 import React, { useState } from 'react'
-import type { Tower, GemLevel, GemType } from '../types/game'
+import type { Tower, GemLevel, GemType, SpecialTowerType } from '../types/game'
+import { GEM_COLORS, SPECIAL_TOWER_COLORS, GEM_NAMES, SPECIAL_TOWER_NAMES, LEVEL_NAMES } from '../config/towers'
 
 interface SynthesisDialogProps {
   storedTowers: Tower[]
   onSynthesize: (towerId1: string, towerId2: string) => void
-  onSynthesizeSpecial?: (specialType: 'silver' | 'malachite' | 'starRuby') => void  // 新增
+  onSynthesizeSpecial?: (specialType: SpecialTowerType) => void
   onClose: () => void
 }
 
-// 辅助函数
-const getGemColor = (gemType?: GemType): string => {
-  if (!gemType) return '#CCCCCC'
-  const colors: Record<GemType, string> = {
-    amethyst: '#9370DB',
-    diamond: '#FFFFFF',
-    topaz: '#FFD700',
-    opal: '#98FB98'
-  }
-  return colors[gemType] || '#CCCCCC'
-}
 
-const getGemName = (gemType?: GemType): string => {
-  if (!gemType) return '未知'
-  const names: Record<GemType, string> = {
-    amethyst: '紫水晶',
-    diamond: '钻石',
-    topaz: '黄玉',
-    opal: '蛋白石'
-  }
-  return names[gemType] || '未知'
-}
-
-const getLevelName = (level: GemLevel): string => {
-  const names: Record<GemLevel, string> = {
-    chipped: '碎裂',
-    flawed: '有瑕',
-    normal: '普通',
-    flawless: '无瑕'
-  }
-  return names[level] || '未知'
-}
 
 export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
   storedTowers,
@@ -262,7 +232,9 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                 <ul style={{ textAlign: 'left', marginTop: '10px', paddingLeft: '20px' }}>
                   {storedTowers.map(t => (
                     <li key={t.id} style={{ fontSize: '12px', marginBottom: '4px' }}>
-                      {getGemName(t.gemType)} {getLevelName(t.level)} (ID: {t.id.substring(0, 8)})
+                      {t.specialType 
+                        ? SPECIAL_TOWER_NAMES[t.specialType] 
+                        : `${GEM_NAMES[t.gemType || 'amethyst']} ${LEVEL_NAMES[t.level]}`} (ID: {t.id.substring(0, 8)})
                     </li>
                   ))}
                 </ul>
@@ -303,14 +275,16 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                       <div style={{
                         width: '30px',
                         height: '30px',
-                        background: getGemColor(tower1.gemType),
+                        background: tower1.specialType 
+                          ? SPECIAL_TOWER_COLORS[tower1.specialType]
+                          : GEM_COLORS[tower1.gemType || 'amethyst'],
                         borderRadius: '4px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: '12px',
                         fontWeight: 'bold',
-                        color: tower1.gemType === 'diamond' ? '#333' : 'white',
+                        color: tower1.gemType === 'diamond' || tower1.specialType === 'moonstone' ? '#333' : 'white',
                         border: '1px solid #666'
                       }}>
                         {tower1.level.substring(0, 1).toUpperCase()}
@@ -322,14 +296,16 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                       <div style={{
                         width: '30px',
                         height: '30px',
-                        background: getGemColor(tower2.gemType),
+                        background: tower2.specialType
+                          ? SPECIAL_TOWER_COLORS[tower2.specialType]
+                          : GEM_COLORS[tower2.gemType || 'amethyst'],
                         borderRadius: '4px',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         fontSize: '12px',
                         fontWeight: 'bold',
-                        color: tower2.gemType === 'diamond' ? '#333' : 'white',
+                        color: tower2.gemType === 'diamond' || tower2.specialType === 'moonstone' ? '#333' : 'white',
                         border: '1px solid #666'
                       }}>
                         {tower2.level.substring(0, 1).toUpperCase()}
@@ -338,12 +314,14 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                       <span style={{ flex: 1 }}></span>
                       
                       <span style={{ fontSize: '12px', color: '#666' }}>
-                        → {getLevelName(tower1.level === 'chipped' ? 'flawed' : tower1.level === 'flawed' ? 'normal' : 'flawless')}
+                        → {LEVEL_NAMES[tower1.level === 'chipped' ? 'flawed' : tower1.level === 'flawed' ? 'normal' : 'flawless']}
                       </span>
                     </div>
                     
                     <div style={{ fontSize: '11px', color: '#999' }}>
-                      {getGemName(tower1.gemType)} {getLevelName(tower1.level)} x2
+                      {tower1.specialType 
+                        ? SPECIAL_TOWER_NAMES[tower1.specialType]
+                        : `${GEM_NAMES[tower1.gemType || 'amethyst']} ${LEVEL_NAMES[tower1.level]}`} x2
                     </div>
                   </div>
                 )

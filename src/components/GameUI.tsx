@@ -1,4 +1,6 @@
-import React from 'react'
+import React, { useState } from 'react'
+import { soundManager } from '../utils/audio'
+import { calculateUpgradeCost } from '../config/towers'
 
 interface GameUIProps {
   uiState: {
@@ -10,11 +12,13 @@ interface GameUIProps {
     gameStatus: 'preparing' | 'playing' | 'paused' | 'game_over' | 'victory'
     selectedGem: string | null
     canPlaceTowers: boolean
+    gameLevel: number  // ✅ 新增: 游戏等级
   }
   onStartWave: () => void
   onPause: () => void
   onResume: () => void
   onOpenSynthesis?: () => void
+  onUpgradeGameLevel?: () => void  // ✅ 新增: 升级游戏等级回调
 }
 
 export const GameUI: React.FC<GameUIProps> = ({
@@ -22,8 +26,17 @@ export const GameUI: React.FC<GameUIProps> = ({
   onStartWave,
   onPause,
   onResume,
-  onOpenSynthesis
+  onOpenSynthesis,
+  onUpgradeGameLevel
 }) => {
+  const [soundEnabled, setSoundEnabled] = useState(true)
+  
+  const toggleSound = () => {
+    const newState = !soundEnabled
+    setSoundEnabled(newState)
+    soundManager.setEnabled(newState)
+  }
+  
   return (
     <div style={{
       display: 'flex',
@@ -47,6 +60,42 @@ export const GameUI: React.FC<GameUIProps> = ({
           <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{uiState.gold}</div>
         </div>
       </div>
+      
+      {/* ✅ 新增: 游戏等级显示 */}
+      <div style={{
+        background: '#E1BEE7',
+        padding: '8px 15px',
+        borderRadius: '8px',
+        marginRight: '10px'
+      }}>
+        <div style={{ fontSize: '12px', color: '#666' }}>游戏等级</div>
+        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#9C27B0' }}>
+          Lv.{uiState.gameLevel}
+        </div>
+      </div>
+      
+      {/* ✅ 新增: 升级按钮 */}
+      {onUpgradeGameLevel && (
+        <button
+          onClick={onUpgradeGameLevel}
+          disabled={uiState.gold < calculateUpgradeCost(uiState.gameLevel)}
+          style={{
+            padding: '8px 15px',
+            background: uiState.gold >= calculateUpgradeCost(uiState.gameLevel) ? '#9C27B0' : '#ccc',
+            color: 'white',
+            border: 'none',
+            borderRadius: '8px',
+            cursor: uiState.gold >= calculateUpgradeCost(uiState.gameLevel) ? 'pointer' : 'not-allowed',
+            fontSize: '14px',
+            fontWeight: 'bold'
+          }}
+        >
+          升级<br/>
+          <span style={{ fontSize: '11px' }}>
+            {calculateUpgradeCost(uiState.gameLevel)}
+          </span>
+        </button>
+      )}
       
       {/* 分隔线 */}
       <div style={{ width: '2px', height: '40px', background: 'rgba(255,255,255,0.3)' }} />
@@ -210,6 +259,33 @@ export const GameUI: React.FC<GameUIProps> = ({
             🔧 合成
           </button>
         )}
+        
+        {/* 音效开关按钮 */}
+        <button
+          onClick={toggleSound}
+          style={{
+            padding: '10px 15px',
+            background: soundEnabled ? '#4CAF50' : '#9E9E9E',
+            color: 'white',
+            border: 'none',
+            borderRadius: '6px',
+            cursor: 'pointer',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            transition: 'all 0.2s'
+          }}
+          title={soundEnabled ? '音效已开启' : '音效已关闭'}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'translateY(-2px)'
+            e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'translateY(0)'
+            e.currentTarget.style.boxShadow = 'none'
+          }}
+        >
+          {soundEnabled ? '🔊 音效开' : '🔇 音效关'}
+        </button>
       </div>
     </div>
   )

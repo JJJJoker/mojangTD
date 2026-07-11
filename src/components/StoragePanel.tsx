@@ -1,32 +1,13 @@
 import React, { useState } from 'react'
-import type { Tower, GemLevel } from '../types/game'
-import { SPECIAL_TOWER_RECIPES } from '../config/towers'
+import type { Tower, GemLevel, SpecialTowerType } from '../types/game'
+import { SPECIAL_TOWER_RECIPES, GEM_COLORS, SPECIAL_TOWER_COLORS, GEM_NAMES, SPECIAL_TOWER_NAMES, LEVEL_NAMES } from '../config/towers'
 
 interface StoragePanelProps {
   storedTowers: Tower[]
   onSynthesize: (towerId1: string, towerId2: string) => void
 }
 
-const LEVEL_NAMES: Record<GemLevel, string> = {
-  chipped: '碎裂',
-  flawed: '瑕疵',
-  normal: '普通',
-  flawless: '无暇'
-}
 
-const GEM_NAMES: Record<string, string> = {
-  amethyst: '紫水晶',
-  diamond: '钻石',
-  topaz: '黄玉',
-  opal: '蛋白石'
-}
-
-const GEM_COLORS: Record<string, string> = {
-  amethyst: '#9370DB',
-  diamond: '#FFFFFF',
-  topaz: '#FFD700',
-  opal: '#98FB98'
-}
 
 export const StoragePanel: React.FC<StoragePanelProps> = ({
   storedTowers,
@@ -98,7 +79,15 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
         <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
           {storedTowers.map(tower => {
             const isSelected = firstSelectedTower === tower.id
-            const color = tower.gemType ? GEM_COLORS[tower.gemType] : '#FF69B4'
+            // 确定颜色
+            let color: string
+            if (tower.specialType) {
+              color = SPECIAL_TOWER_COLORS[tower.specialType]
+            } else if (tower.gemType) {
+              color = GEM_COLORS[tower.gemType]
+            } else {
+              color = '#CCCCCC'
+            }
             
             return (
               <div
@@ -140,7 +129,7 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
                     justifyContent: 'center',
                     fontSize: '16px',
                     fontWeight: 'bold',
-                    color: tower.gemType === 'diamond' ? '#333' : 'white',
+                    color: tower.gemType === 'diamond' || tower.specialType === 'moonstone' ? '#333' : 'white',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
                     flexShrink: 0
                   }}>
@@ -150,7 +139,9 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
                   {/* 塔信息 */}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '14px', fontWeight: 'bold', color: '#333', marginBottom: '4px' }}>
-                      {tower.gemType ? GEM_NAMES[tower.gemType] || tower.gemType : tower.specialType}
+                      {tower.specialType 
+                        ? SPECIAL_TOWER_NAMES[tower.specialType] 
+                        : (tower.gemType ? GEM_NAMES[tower.gemType] : '未知')}
                     </div>
                     <div style={{ fontSize: '12px', color: '#666', marginBottom: '2px' }}>
                       {LEVEL_NAMES[tower.level]}
@@ -180,7 +171,7 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
           </div>
           {availableRecipes.map(recipe => (
             <div key={recipe.type} style={{ fontSize: '12px', color: '#666' }}>
-              • {recipe.requiredGems.join(' + ')} → {recipe.type}
+              • {SPECIAL_TOWER_NAMES[recipe.type as SpecialTowerType]}: {recipe.requiredGems.map(g => GEM_NAMES[g]).join(' + ')}
             </div>
           ))}
         </div>
