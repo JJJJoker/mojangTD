@@ -1,432 +1,327 @@
-import type { GemType, GemLevel, SpecialTowerType, TowerLevel } from '../types/game'
+import type { MahjongSuit, MahjongNumber, TowerQuality, BaseTowerConfig, DragonTile, WindTile, MahjongTile } from '../types/game'
 
-// 基础塔属性配置 - 8种宝石,每种4个等级
-export const BASE_TOWER_STATS: Record<GemType, Record<GemLevel, {
-  damage: number
-  range: number
-  attackSpeed: number
-  damageType: 'physical' | 'magic' | 'pure'
-  multiTarget?: number          // 钻石特有
-  splashRadius?: number         // 黄玉特有
-  slowEffect?: number           // 蛋白石特有
-  critChance?: number           // 红宝石、紫水晶特有
-  critMultiplier?: number       // 红宝石、紫水晶特有
-  pierce?: boolean              // 蓝宝石特有
-  poisonDamage?: number         // 翡翠特有
-  poisonDuration?: number       // 翡翠特有
-  stunChance?: number           // 黑曜石特有
-  stunDuration?: number         // 黑曜石特有
-}>> = {
-  // ========== 1. 紫水晶(Amethyst) - 高伤害单体物理攻击 ==========
-  amethyst: {
-    chipped: { 
-      damage: 25, range: 200, attackSpeed: 1200, damageType: 'physical',
-      critChance: 0.1, critMultiplier: 2.0  // 10%暴击,2倍伤害
-    },
-    flawed: { 
-      damage: 30, range: 210, attackSpeed: 1200, damageType: 'physical',
-      critChance: 0.12, critMultiplier: 2.0
-    },
-    normal: { 
-      damage: 40, range: 220, attackSpeed: 1200, damageType: 'physical',
-      critChance: 0.15, critMultiplier: 2.0
-    },
-    flawless: { 
-      damage: 55, range: 230, attackSpeed: 1100, damageType: 'physical',
-      critChance: 0.2, critMultiplier: 2.5  // 20%暴击,2.5倍伤害
-    }
+/**
+ * 三花色门派定位
+ * - 万子: 物理爆发·单体·财运
+ * - 条子: 连射·穿透·毒素·多目标  
+ * - 筒子: 范围·减速·眩晕·控场
+ */
+
+/**
+ * 基础塔数值表(3花色 × 9点数)
+ */
+export const BASE_TOWER_STATS: Record<MahjongSuit, Record<MahjongNumber, Partial<BaseTowerConfig>>> = {
+  // 万子门派: 物理爆发·单体·财运
+  wan: {
+    1: { damage: 6, range: 100, attackSpeed: 0.7, damageType: 'physical', critChance: 0.1 },
+    2: { damage: 7, range: 105, attackSpeed: 0.75, damageType: 'physical', critChance: 0.12 },
+    3: { damage: 8, range: 110, attackSpeed: 0.8, damageType: 'physical', critChance: 0.14 },
+    4: { damage: 9, range: 115, attackSpeed: 0.85, damageType: 'physical', critChance: 0.16 },
+    5: { damage: 10, range: 120, attackSpeed: 0.9, damageType: 'physical', critChance: 0.18 },
+    6: { damage: 11, range: 125, attackSpeed: 0.95, damageType: 'physical', critChance: 0.20 },
+    7: { damage: 12, range: 130, attackSpeed: 1.0, damageType: 'physical', critChance: 0.22 },
+    8: { damage: 14, range: 135, attackSpeed: 1.05, damageType: 'physical', critChance: 0.25 },
+    9: { damage: 16, range: 140, attackSpeed: 1.1, damageType: 'physical', critChance: 0.28 }
   },
-
-  // ========== 2. 钻石(Diamond) - 快速多目标物理攻击 ==========
-  diamond: {
-    chipped: { 
-      damage: 8, range: 180, attackSpeed: 400, damageType: 'physical',
-      multiTarget: 3
-    },
-    flawed: { 
-      damage: 10, range: 190, attackSpeed: 400, damageType: 'physical',
-      multiTarget: 3
-    },
-    normal: { 
-      damage: 13, range: 200, attackSpeed: 350, damageType: 'physical',
-      multiTarget: 4
-    },
-    flawless: { 
-      damage: 17, range: 210, attackSpeed: 300, damageType: 'physical',
-      multiTarget: 5
-    }
+  
+  // 条子门派: 连射·穿透·毒素·多目标
+  tiao: {
+    1: { damage: 5, range: 110, attackSpeed: 1.1, damageType: 'magic', pierce: 1, poisonDamage: 1 },
+    2: { damage: 5, range: 115, attackSpeed: 1.15, damageType: 'magic', pierce: 1, poisonDamage: 2 },
+    3: { damage: 6, range: 120, attackSpeed: 1.2, damageType: 'magic', pierce: 2, poisonDamage: 2 },
+    4: { damage: 6, range: 125, attackSpeed: 1.25, damageType: 'magic', pierce: 2, poisonDamage: 3 },
+    5: { damage: 7, range: 130, attackSpeed: 1.3, damageType: 'magic', pierce: 2, poisonDamage: 3 },
+    6: { damage: 7, range: 135, attackSpeed: 1.35, damageType: 'magic', pierce: 3, poisonDamage: 4 },
+    7: { damage: 8, range: 140, attackSpeed: 1.4, damageType: 'magic', pierce: 3, poisonDamage: 4 },
+    8: { damage: 8, range: 145, attackSpeed: 1.45, damageType: 'magic', pierce: 3, poisonDamage: 5 },
+    9: { damage: 9, range: 150, attackSpeed: 1.5, damageType: 'magic', pierce: 4, poisonDamage: 5 }
   },
-
-  // ========== 3. 黄玉(Topaz) - 溅射范围物理伤害 ==========
-  topaz: {
-    chipped: { 
-      damage: 15, range: 160, attackSpeed: 1000, damageType: 'physical',
-      splashRadius: 60
-    },
-    flawed: { 
-      damage: 18, range: 170, attackSpeed: 1000, damageType: 'physical',
-      splashRadius: 70
-    },
-    normal: { 
-      damage: 24, range: 180, attackSpeed: 900, damageType: 'physical',
-      splashRadius: 80
-    },
-    flawless: { 
-      damage: 32, range: 190, attackSpeed: 800, damageType: 'physical',
-      splashRadius: 100
-    }
-  },
-
-  // ========== 4. 蛋白石(Opal) - 减速魔法伤害 ==========
-  opal: {
-    chipped: { 
-      damage: 10, range: 200, attackSpeed: 800, damageType: 'magic',
-      slowEffect: 0.3  // 30%减速
-    },
-    flawed: { 
-      damage: 12, range: 210, attackSpeed: 800, damageType: 'magic',
-      slowEffect: 0.4  // 40%减速
-    },
-    normal: { 
-      damage: 16, range: 220, attackSpeed: 750, damageType: 'magic',
-      slowEffect: 0.5  // 50%减速
-    },
-    flawless: { 
-      damage: 22, range: 230, attackSpeed: 700, damageType: 'magic',
-      slowEffect: 0.6  // 60%减速
-    }
-  },
-
-  // ========== 5. 红宝石(Ruby) - 纯粹伤害+高暴击 ==========
-  ruby: {
-    chipped: { 
-      damage: 20, range: 190, attackSpeed: 1000, damageType: 'pure',
-      critChance: 0.15, critMultiplier: 2.5
-    },
-    flawed: { 
-      damage: 25, range: 200, attackSpeed: 1000, damageType: 'pure',
-      critChance: 0.18, critMultiplier: 2.5
-    },
-    normal: { 
-      damage: 35, range: 210, attackSpeed: 900, damageType: 'pure',
-      critChance: 0.22, critMultiplier: 3.0
-    },
-    flawless: { 
-      damage: 50, range: 220, attackSpeed: 800, damageType: 'pure',
-      critChance: 0.3, critMultiplier: 3.5  // 30%暴击,3.5倍伤害
-    }
-  },
-
-  // ========== 6. 蓝宝石(Sapphire) - 魔法穿透伤害 ==========
-  sapphire: {
-    chipped: { 
-      damage: 18, range: 210, attackSpeed: 900, damageType: 'magic',
-      pierce: true  // 穿透第一个敌人击中后面的
-    },
-    flawed: { 
-      damage: 22, range: 220, attackSpeed: 900, damageType: 'magic',
-      pierce: true
-    },
-    normal: { 
-      damage: 30, range: 230, attackSpeed: 850, damageType: 'magic',
-      pierce: true
-    },
-    flawless: { 
-      damage: 42, range: 240, attackSpeed: 800, damageType: 'magic',
-      pierce: true
-    }
-  },
-
-  // ========== 7. 翡翠(Emerald) - 毒素持续伤害 ==========
-  emerald: {
-    chipped: { 
-      damage: 12, range: 200, attackSpeed: 1100, damageType: 'magic',
-      poisonDamage: 5, poisonDuration: 3000  // 每秒5点伤害,持续3秒
-    },
-    flawed: { 
-      damage: 15, range: 210, attackSpeed: 1100, damageType: 'magic',
-      poisonDamage: 7, poisonDuration: 3500
-    },
-    normal: { 
-      damage: 20, range: 220, attackSpeed: 1000, damageType: 'magic',
-      poisonDamage: 10, poisonDuration: 4000
-    },
-    flawless: { 
-      damage: 28, range: 230, attackSpeed: 900, damageType: 'magic',
-      poisonDamage: 15, poisonDuration: 5000  // 每秒15点伤害,持续5秒
-    }
-  },
-
-  // ========== 8. 黑曜石(Obsidian) - 眩晕控制 ==========
-  obsidian: {
-    chipped: { 
-      damage: 15, range: 180, attackSpeed: 1300, damageType: 'physical',
-      stunChance: 0.1, stunDuration: 1000  // 10%概率眩晕1秒
-    },
-    flawed: { 
-      damage: 18, range: 190, attackSpeed: 1300, damageType: 'physical',
-      stunChance: 0.12, stunDuration: 1200
-    },
-    normal: { 
-      damage: 25, range: 200, attackSpeed: 1200, damageType: 'physical',
-      stunChance: 0.15, stunDuration: 1500
-    },
-    flawless: { 
-      damage: 35, range: 210, attackSpeed: 1100, damageType: 'physical',
-      stunChance: 0.2, stunDuration: 2000  // 20%概率眩晕2秒
-    }
+  
+  // 筒子门派: 范围·减速·眩晕·控场
+  tong: {
+    1: { damage: 4, range: 90, attackSpeed: 0.9, damageType: 'magic', splashRadius: 25, slowEffect: 0.2 },
+    2: { damage: 4, range: 95, attackSpeed: 0.95, damageType: 'magic', splashRadius: 28, slowEffect: 0.25 },
+    3: { damage: 5, range: 100, attackSpeed: 1.0, damageType: 'magic', splashRadius: 30, slowEffect: 0.3 },
+    4: { damage: 5, range: 105, attackSpeed: 1.05, damageType: 'magic', splashRadius: 33, slowEffect: 0.35 },
+    5: { damage: 6, range: 110, attackSpeed: 1.1, damageType: 'magic', splashRadius: 35, slowEffect: 0.4 },
+    6: { damage: 6, range: 115, attackSpeed: 1.15, damageType: 'magic', splashRadius: 38, slowEffect: 0.45 },
+    7: { damage: 7, range: 120, attackSpeed: 1.2, damageType: 'magic', splashRadius: 40, slowEffect: 0.5 },
+    8: { damage: 7, range: 125, attackSpeed: 1.25, damageType: 'magic', splashRadius: 43, slowEffect: 0.55 },
+    9: { damage: 8, range: 130, attackSpeed: 1.3, damageType: 'magic', splashRadius: 45, slowEffect: 0.6, stunChance: 0.1 }
   }
 }
 
-// 特殊塔配方和特性 - 6种合成塔
-export const SPECIAL_TOWER_RECIPES: Record<SpecialTowerType, {
-  requiredGems: [GemType, GemType]
-  level: GemLevel
-  stats: {
-    damage: number
-    range: number
-    attackSpeed: number
-    damageType: 'physical' | 'magic' | 'pure'
-    
-    // 特效
-    multiTarget?: number
-    splashRadius?: number
-    slowEffect?: number
-    critChance?: number
-    critMultiplier?: number
-    pierce?: boolean
-    poisonDamage?: number
-    poisonDuration?: number
-    stunChance?: number
-    stunDuration?: number
-  }
-  description: string
-}> = {
-  // ========== 银塔(Silver) - 钻石 + 黄玉 ==========
-  silver: {
-    requiredGems: ['diamond', 'topaz'],
-    level: 'normal',
-    stats: {
-      damage: 20, range: 200, attackSpeed: 600, damageType: 'physical',
-      multiTarget: 3, splashRadius: 80
-    },
-    description: '多目标攻击 + 溅射伤害,强力清场塔'
-  },
-
-  // ========== 孔雀石(Malachite) - 黄玉 + 蛋白石 ==========
-  malachite: {
-    requiredGems: ['topaz', 'opal'],
-    level: 'normal',
-    stats: {
-      damage: 18, range: 190, attackSpeed: 900, damageType: 'magic',
-      splashRadius: 90, slowEffect: 0.5
-    },
-    description: '溅射伤害 + 减速效果,控制和输出兼备'
-  },
-
-  // ========== 星红宝石(Star Ruby) - 紫水晶 + 红宝石 ==========
-  starRuby: {
-    requiredGems: ['amethyst', 'ruby'],
-    level: 'normal',
-    stats: {
-      damage: 50, range: 220, attackSpeed: 800, damageType: 'pure',
-      critChance: 0.25, critMultiplier: 3.0
-    },
-    description: '超高纯粹伤害 + 高暴击,克制高护甲坦克'
-  },
-
-  // ========== 月长石(Moonstone) - 蓝宝石 + 蛋白石 ==========
-  moonstone: {
-    requiredGems: ['sapphire', 'opal'],
-    level: 'normal',
-    stats: {
-      damage: 25, range: 230, attackSpeed: 850, damageType: 'magic',
-      pierce: true, slowEffect: 0.4
-    },
-    description: '魔法穿透 + 减速,远程压制塔'
-  },
-
-  // ========== 玉石(Jade) - 翡翠 + 黑曜石 ==========
-  jade: {
-    requiredGems: ['emerald', 'obsidian'],
-    level: 'normal',
-    stats: {
-      damage: 22, range: 200, attackSpeed: 1000, damageType: 'magic',
-      poisonDamage: 12, poisonDuration: 4000,
-      stunChance: 0.15, stunDuration: 1500
-    },
-    description: '毒素伤害 + 眩晕,持续控制塔'
-  },
-
-  // ========== 玛瑙(Onyx) - 红宝石 + 黑曜石 ==========
-  onyx: {
-    requiredGems: ['ruby', 'obsidian'],
-    level: 'normal',
-    stats: {
-      damage: 40, range: 210, attackSpeed: 900, damageType: 'pure',
-      critChance: 0.2, critMultiplier: 2.5,
-      stunChance: 0.1, stunDuration: 1000
-    },
-    description: '纯粹伤害 + 暴击 + 眩晕,终极爆发塔'
-  }
+/**
+ * 品质加成系数
+ */
+export const QUALITY_MULTIPLIERS: Record<TowerQuality, number> = {
+  sheng: 1.0,   // 生张: 基础
+  shu: 1.3,     // 熟张: +30%
+  lao: 1.6,     // 老张: +60%
+  jue: 2.0      // 绝张: +100%
 }
 
 /**
  * 获取塔统计数据
  */
-export function getTowerStats(gemType: GemType, level: GemLevel) {
-  return BASE_TOWER_STATS[gemType][level]
-}
-
-/**
- * 获取特殊塔统计数据
- */
-export function getSpecialTowerStats(specialType: SpecialTowerType) {
-  return SPECIAL_TOWER_RECIPES[specialType].stats
-}
-
-/**
- * 检查是否可以合成特殊塔
- */
-export function canCraftSpecialTower(
-  storedTowers: Array<{ gemType?: GemType; specialType?: SpecialTowerType }>,
-  specialType: SpecialTowerType
-): boolean {
-  const recipe = SPECIAL_TOWER_RECIPES[specialType]
-  const [gem1, gem2] = recipe.requiredGems
+export function getTowerStats(tile: MahjongTile, quality: TowerQuality): Partial<BaseTowerConfig> {
+  if (!tile.suit || !tile.number) {
+    // 字牌返回空配置
+    return {}
+  }
   
-  const hasGem1 = storedTowers.some(t => t.gemType === gem1)
-  const hasGem2 = storedTowers.some(t => t.gemType === gem2)
+  const base = BASE_TOWER_STATS[tile.suit][tile.number]
+  const multiplier = QUALITY_MULTIPLIERS[quality]
   
-  return hasGem1 && hasGem2
+  return {
+    ...base,
+    damage: Math.floor(base.damage! * multiplier),
+    range: Math.floor(base.range! * multiplier),
+    attackSpeed: base.attackSpeed! * multiplier
+  }
 }
 
 /**
- * 宝石颜色映射
+ * 面子合成配方
  */
-export const GEM_COLORS: Record<GemType, string> = {
-  amethyst: '#9370DB',    // 紫色
-  diamond: '#FFFFFF',     // 白色
-  topaz: '#FFD700',       // 金色
-  opal: '#98FB98',        // 浅绿色
-  ruby: '#E0115F',        // 深红色
-  sapphire: '#0F52BA',    // 蓝色
-  emerald: '#50C878',     // 翠绿色
-  obsidian: '#353839'     // 黑色
+export const MAHJONG_SYNTHESIS = {
+  // 刻子: 3张同花色同点数 → 明刻塔(单点爆发强化)
+  kezi: (suit: MahjongSuit, number: MahjongNumber) => ({
+    tile: { suit, number },
+    bonus: {
+      damageMultiplier: 2.0,
+      critChanceBonus: 0.2,
+      critMultiplierBonus: 0.5
+    }
+  }),
+  
+  // 顺子: 同花色连续3点 → 顺子塔(链式/多目标)
+  shunzi: (suit: MahjongSuit, startNumber: MahjongNumber) => ({
+    tile: { suit, number: startNumber as MahjongNumber },
+    bonus: {
+      multiTarget: true,
+      pierce: 2,
+      attackSpeedBonus: 0.3
+    }
+  }),
+  
+  // 杠: 4张同花色同点数 → 杠塔(最强基础形态)
+  gang: (suit: MahjongSuit, number: MahjongNumber) => ({
+    tile: { suit, number },
+    bonus: {
+      damageMultiplier: 3.0,
+      rangeMultiplier: 1.5,
+      critChanceBonus: 0.3,
+      pierce: 3
+    }
+  })
 }
 
 /**
- * 特殊塔颜色映射
+ * 三元牌催化配方
  */
-export const SPECIAL_TOWER_COLORS: Record<SpecialTowerType, string> = {
-  silver: '#C0C0C0',      // 银色
-  malachite: '#00A86B',   // 深绿色
-  starRuby: '#FF0040',    // 亮红色
-  moonstone: '#F0F8FF',   // 淡蓝色
-  jade: '#00A86B',        // 玉石绿
-  onyx: '#000000'         // 纯黑色
-}
-
-/**
- * 宝石中文名称
- */
-export const GEM_NAMES: Record<GemType, string> = {
-  amethyst: '紫水晶',
-  diamond: '钻石',
-  topaz: '黄玉',
-  opal: '蛋白石',
-  ruby: '红宝石',
-  sapphire: '蓝宝石',
-  emerald: '翡翠',
-  obsidian: '黑曜石'
-}
-
-/**
- * 特殊塔中文名称
- */
-export const SPECIAL_TOWER_NAMES: Record<SpecialTowerType, string> = {
-  silver: '银塔',
-  malachite: '孔雀石',
-  starRuby: '星红宝石',
-  moonstone: '月长石',
-  jade: '玉石',
-  onyx: '玛瑙'
-}
-
-/**
- * 等级中文名称
- */
-export const LEVEL_NAMES: Record<GemLevel, string> = {
-  chipped: '碎裂',
-  flawed: '有瑕',
-  normal: '普通',
-  flawless: '无瑕'
-}
-
-/**
- * 等级图标
- */
-export const LEVEL_ICONS: Record<GemLevel, string> = {
-  chipped: 'C',
-  flawed: 'F',
-  normal: 'N',
-  flawless: 'L'
-}
-
-/**
- * 塔等级概率配置
- * 根据游戏等级动态调整
- */
-export const TOWER_LEVEL_PROBABILITIES = [
-  // Level 1-5
-  { minLevel: 1, maxLevel: 5, chipped: 0.70, regular: 0.25, polished: 0.05 },
-  // Level 6-10
-  { minLevel: 6, maxLevel: 10, chipped: 0.60, regular: 0.30, polished: 0.10 },
-  // Level 11-15
-  { minLevel: 11, maxLevel: 15, chipped: 0.50, regular: 0.35, polished: 0.15 },
-  // Level 16-20
-  { minLevel: 16, maxLevel: 20, chipped: 0.40, regular: 0.40, polished: 0.20 },
-  // Level 21+
-  { minLevel: 21, maxLevel: Infinity, chipped: 0.30, regular: 0.45, polished: 0.25 }
-]
-
-/**
- * 获取当前等级的塔等级概率
- */
-export function getTowerLevelProbabilities(gameLevel: number) {
-  for (const config of TOWER_LEVEL_PROBABILITIES) {
-    if (gameLevel >= config.minLevel && gameLevel <= config.maxLevel) {
-      return {
-        chipped: config.chipped,
-        regular: config.regular,
-        polished: config.polished
-      }
+export const DRAGON_CATALYST = {
+  zhong: {
+    name: '红中',
+    effect: '进攻催化',
+    bonuses: {
+      damageMultiplier: 1.5,
+      critChanceBonus: 0.15,
+      poisonDamage: 5,
+      poisonDuration: 3
+    }
+  },
+  fa: {
+    name: '发财',
+    effect: '经济催化',
+    bonuses: {
+      goldBonusPerKill: 2,
+      upgradeCostReduction: 0.2
+    }
+  },
+  bai: {
+    name: '白板',
+    effect: '辅助催化',
+    bonuses: {
+      rangeMultiplier: 1.3,
+      slowEffectBonus: 0.2,
+      stunChanceBonus: 0.1
     }
   }
-  // 默认返回最低等级配置
-  return { chipped: 0.70, regular: 0.25, polished: 0.05 }
 }
 
 /**
- * 根据概率随机选择塔等级
+ * 风牌终极配方
  */
-export function randomizeTowerLevel(gameLevel: number): TowerLevel {
-  const probs = getTowerLevelProbabilities(gameLevel)
-  const rand = Math.random()
-  
-  if (rand < probs.chipped) {
-    return 'chipped'
-  } else if (rand < probs.chipped + probs.regular) {
-    return 'regular'
-  } else {
-    return 'polished'
+export const WIND_ULTIMATE = {
+  dong: {
+    name: '东风',
+    archetype: '王牌单体',
+    stats: {
+      damage: 100,
+      range: 200,
+      attackSpeed: 2.0,
+      damageType: 'pure' as const,
+      critChance: 0.5,
+      critMultiplier: 3.0
+    }
+  },
+  nan: {
+    name: '南风',
+    archetype: '烈焰范围',
+    stats: {
+      damage: 60,
+      range: 150,
+      attackSpeed: 1.5,
+      damageType: 'magic' as const,
+      splashRadius: 100,
+      poisonDamage: 20,
+      poisonDuration: 5
+    }
+  },
+  xi: {
+    name: '西风',
+    archetype: '锐金破甲',
+    stats: {
+      damage: 80,
+      range: 180,
+      attackSpeed: 1.8,
+      damageType: 'pure' as const,
+      pierce: 5,
+      multiTarget: true
+    }
+  },
+  bei: {
+    name: '北风',
+    archetype: '寒水封锁',
+    stats: {
+      damage: 50,
+      range: 160,
+      attackSpeed: 1.2,
+      damageType: 'magic' as const,
+      splashRadius: 80,
+      slowEffect: 0.8,
+      stunChance: 0.3,
+      stunDuration: 2
+    }
   }
 }
 
 /**
- * 计算升级到下一等级需要的金币
+ * 随机生成麻将牌面(根据游戏等级调整概率)
+ */
+export function randomizeMahjongTile(gameLevel: number): MahjongTile {
+  // 决定是数牌还是字牌
+  const isNumberTile = Math.random() < 0.85  // 85%概率数牌,15%字牌
+  
+  if (isNumberTile) {
+    // 随机花色
+    const suits: MahjongSuit[] = ['wan', 'tiao', 'tong']
+    const suit = suits[Math.floor(Math.random() * suits.length)]
+    
+    // 根据等级roll点数(高等级更容易出高点数)
+    const number = randomizeMahjongNumber(gameLevel)
+    
+    return { suit, number }
+  } else {
+    // 随机字牌
+    const isDragon = Math.random() < 0.6  // 60%三元牌,40%风牌
+    
+    if (isDragon) {
+      const dragons: DragonTile[] = ['zhong', 'fa', 'bai']
+      return { dragon: dragons[Math.floor(Math.random() * dragons.length)] }
+    } else {
+      const winds: WindTile[] = ['dong', 'nan', 'xi', 'bei']
+      return { wind: winds[Math.floor(Math.random() * winds.length)] }
+    }
+  }
+}
+
+/**
+ * 根据游戏等级随机点数(高等级更容易出高点数)
+ */
+export function randomizeMahjongNumber(gameLevel: number): MahjongNumber {
+  // 基础概率: 均匀分布
+  let probs = [1/9, 1/9, 1/9, 1/9, 1/9, 1/9, 1/9, 1/9, 1/9]
+  
+  // 根据等级调整: 每升1级,高点数概率+2%,低点数概率-2%
+  const adjustment = Math.min((gameLevel - 1) * 0.02, 0.16)  // 封顶16%
+  
+  for (let i = 0; i < 9; i++) {
+    const point = i + 1
+    if (point <= 4) {
+      probs[i] = Math.max(0.02, probs[i] - adjustment * (5 - point) / 4)
+    } else if (point >= 6) {
+      probs[i] = Math.min(0.18, probs[i] + adjustment * (point - 5) / 4)
+    }
+  }
+  
+  // 归一化
+  const sum = probs.reduce((a, b) => a + b, 0)
+  probs = probs.map(p => p / sum)
+  
+  // 随机选择
+  const rand = Math.random()
+  let cumulative = 0
+  for (let i = 0; i < 9; i++) {
+    cumulative += probs[i]
+    if (rand < cumulative) {
+      return (i + 1) as MahjongNumber
+    }
+  }
+  
+  return 5 as MahjongNumber  // fallback
+}
+
+/**
+ * 计算升级到下一品质需要的金币(保持原有公式)
  */
 export function calculateUpgradeCost(currentLevel: number): number {
-  // 指数增长: 100, 200, 400, 800, 1600...
   return 100 * Math.pow(2, currentLevel - 1)
 }
+
+/**
+ * 格式化牌面名称
+ */
+export function formatTileName(tile: MahjongTile): string {
+  if (tile.suit && tile.number) {
+    const suitNames = { wan: '万', tiao: '条', tong: '筒' }
+    return `${tile.number}${suitNames[tile.suit]}`
+  }
+  if (tile.dragon) {
+    const dragonNames = { zhong: '红中', fa: '发财', bai: '白板' }
+    return dragonNames[tile.dragon]
+  }
+  if (tile.wind) {
+    const windNames = { dong: '东风', nan: '南风', xi: '西风', bei: '北风' }
+    return windNames[tile.wind]
+  }
+  return '未知牌'
+}
+
+/**
+ * 格式化品质名称
+ */
+export function formatQualityName(quality: TowerQuality): string {
+  const names = {
+    sheng: '生张',
+    shu: '熟张',
+    lao: '老张',
+    jue: '绝张'
+  }
+  return names[quality]
+}
+
+// 输出攻速配置以便验证
+console.log('\n⚡ 麻将塔攻速配置:')
+Object.entries(BASE_TOWER_STATS).forEach(([suit, numbers]) => {
+  console.log(`  ${suit === 'wan' ? '万子(慢)' : suit === 'tiao' ? '条子(快)' : '筒子(中)'}:`)
+  Object.entries(numbers).forEach(([num, config]) => {
+    const interval = (1000 / config.attackSpeed!).toFixed(0)
+    console.log(`    ${num}点: 攻速=${config.attackSpeed} (间隔${interval}ms)`)
+  })
+})
+
+console.log('\n🃏 合成倍率:')
+console.log(`  刻子: 伤害×${MAHJONG_SYNTHESIS.kezi('wan', 1).bonus.damageMultiplier}`)
+console.log(`  杠:   伤害×${MAHJONG_SYNTHESIS.gang('wan', 1).bonus.damageMultiplier}`)

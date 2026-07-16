@@ -42,12 +42,13 @@ export const BuildPanel: React.FC<BuildPanelProps> = ({
             </p>
             <ol style={{ margin: '0', paddingLeft: '20px' }}>
               <li>点击地图空地放置塔</li>
-              <li>每次随机生成1个宝石</li>
+              <li>每次随机生成1个麻将牌面</li>
               <li>共放置5次(消耗5木材)</li>
               <li>选择1个保留,其余变障碍</li>
               <li style={{ color: '#FF6B6B', fontWeight: 'bold' }}>✨ 点击障碍物消耗1木材删除</li>
               <li style={{ color: '#4CAF50', fontWeight: 'bold' }}>✨ 可直接在障碍物上建新塔</li>
               <li style={{ color: '#FFA726', fontWeight: 'bold' }}>✨ 合成后材料变障碍物</li>
+              <li style={{ color: '#9C27B0', fontWeight: 'bold' }}>🀄 刻子/顺子/杠可强力合成</li>
             </ol>
           </>
         )}

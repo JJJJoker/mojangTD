@@ -1,12 +1,12 @@
 import { useState, useRef, useCallback } from 'react'
 import { useGameLoop } from './useGameLoop'
 import { usePathfinding } from './usePathfinding'
-import type { Enemy, Tower, Bullet, GridCell, GemType, GemLevel } from '../types/game'
-import { getTowerStats, SPECIAL_TOWER_RECIPES, GEM_COLORS, SPECIAL_TOWER_COLORS, LEVEL_ICONS, randomizeTowerLevel, calculateUpgradeCost, getTowerLevelProbabilities } from '../config/towers'
+import type { Enemy, Tower, Bullet, GridCell, MahjongTile, TowerQuality } from '../types/game'
+import { getTowerStats, randomizeMahjongTile, calculateUpgradeCost, formatTileName, formatQualityName } from '../config/towers'
 import { ENEMY_TYPES, createEnemy } from '../config/enemies'
 import { WAVES } from '../config/waves'
 import { MAP_CONFIG, initializeGrid, gridToPixel, WAYPOINTS } from '../config/map'
-import { soundManager, type SoundType } from '../utils/audio'
+import { soundManager } from '../utils/audio'
 
 /**
  * 游戏引擎核心Hook
@@ -46,8 +46,8 @@ export function useGameEngine() {
     maxMineHealth: 15,    // 最大矿坑生命
     wave: 0,              // 当前波次
     gameStatus: 'preparing' as 'preparing' | 'playing' | 'paused' | 'game_over' | 'victory',
-    selectedGem: null as GemType | null,  // 当前选中的宝石类型
-    availableGems: [] as GemType[],  // 当前波可用的5个随机宝石
+    selectedGem: null as MahjongTile | null,  // ✅ 当前选中的麻将牌面
+    availableGems: [] as MahjongTile[],  // ✅ 当前波可用的随机麻将牌
     canPlaceTowers: true as boolean,  // 是否可以放置塔
     gameLevel: 1  // ✅ 新增: 初始游戏等级为1
   })
@@ -76,18 +76,18 @@ export function useGameEngine() {
   // ==================== 核心方法 ====================
   
   /**
-   * 选择宝石类型
-   * @param gemType - 要选择的宝石类型
+   * 选择麻将牌面
+   * @param tile - 要选择的麻将牌面
    */
-  const selectGem = useCallback((gemType: GemType) => {
-    setUiState(prev => ({ ...prev, selectedGem: gemType }))
+  const selectGem = useCallback((tile: MahjongTile) => {
+    setUiState(prev => ({ ...prev, selectedGem: tile }))
   }, [])
   
   /**
-   * 放置塔到指定位置(随机生成宝石)
+   * 放置塔到指定位置(随机生成麻将牌面)
    * 
    * 原版宝石TD玩法:
-   * 1. 点击地图格子,随机生成1个宝石塔
+   * 1. 点击地图格子,随机生成1个麻将牌面塔
    * 2. 每次消耗1木材
    * 3. 共放置5次后进入决策阶段
    * 
@@ -119,39 +119,38 @@ export function useGameEngine() {
       return null
     }
     
-    // 随机选择一个宝石类型(8种基础宝石)
-    const gemTypes: GemType[] = ['amethyst', 'diamond', 'topaz', 'opal', 'ruby', 'sapphire', 'emerald', 'obsidian']
-    const randomIndex = Math.floor(Math.random() * gemTypes.length)
-    const randomGemType = gemTypes[randomIndex]
+    // ✅ 新增: 随机生成麻将牌面
+    const randomTile = randomizeMahjongTile(uiState.gameLevel)
     
-    // ✅ 新增: 根据游戏等级随机生成塔等级
-    const randomLevel = randomizeTowerLevel(uiState.gameLevel)
+    // ✅ 新增: 随机生成品质(根据gameLevel)
+    const qualityProbs = getTowerQualityProbabilities(uiState.gameLevel)
+    const randomQuality = randomizeTowerQuality(qualityProbs)
     
-    // 创建塔
-    const stats = getTowerStats(randomGemType, randomLevel)
-    const pixelPos = gridToPixel(gridPos.row, gridPos.col)
+    // 获取塔的统计数据
+    const stats = getTowerStats(randomTile, randomQuality)
     
+    // 创建新塔
     const newTower: Tower = {
-      id: `tower_${Date.now()}_${Math.random()}`,
-      gemType: randomGemType,
-      level: randomLevel,  // ✅ 使用随机等级
+      id: `tower_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      tile: randomTile,              // ✅ 改为tile
+      quality: randomQuality,        // ✅ 改为quality
+      position: gridToPixel(gridPos.row, gridPos.col),
       gridPosition: gridPos,
-      position: pixelPos,
-      damage: stats.damage,
-      range: stats.range,
-      attackSpeed: stats.attackSpeed,
-      lastAttackTime: 0,
-      damageType: stats.damageType,
-      critChance: stats.critChance,
-      critMultiplier: stats.critMultiplier,
+      damage: stats.damage || 10,
+      range: stats.range || 100,
+      attackSpeed: stats.attackSpeed || 1.0,
+      damageType: stats.damageType || 'physical',
       multiTarget: stats.multiTarget,
       splashRadius: stats.splashRadius,
       slowEffect: stats.slowEffect,
+      critChance: stats.critChance,
+      critMultiplier: stats.critMultiplier,
+      pierce: stats.pierce,
       poisonDamage: stats.poisonDamage,
       poisonDuration: stats.poisonDuration,
       stunChance: stats.stunChance,
       stunDuration: stats.stunDuration,
-      pierce: stats.pierce
+      lastAttackTime: 0
     }
     
     // 扣除木材
@@ -162,7 +161,7 @@ export function useGameEngine() {
     
     // ✅ 添加到当前批次列表
     gameStateRef.current.currentBatchTowerIds.push(newTower.id)
-    console.log(`✅ 放置${randomGemType}塔(${randomLevel})在(${gridPos.row},${gridPos.col}),原类型:${grid[gridPos.row][gridPos.col].type},剩余木材:${uiState.wood - 1}`)
+    console.log(`✅ 放置${formatTileName(randomTile)}(${formatQualityName(randomQuality)})在(${gridPos.row},${gridPos.col}),剩余木材:${uiState.wood - 1}`)
     
     // ✅ 修改: 更新格子类型为tower(无论是从empty还是obstacle)
     grid[gridPos.row][gridPos.col] = {
@@ -177,6 +176,36 @@ export function useGameEngine() {
     
     return newTower
   }, [uiState.wood, validatePlacement, calculatePath, uiState.gameLevel])
+  
+  // 辅助函数: 获取品质概率
+  function getTowerQualityProbabilities(gameLevel: number) {
+    // Level 1-5: 生张70%, 熟张25%, 老张5%, 绝张0%
+    // Level 6-10: 生张60%, 熟张30%, 老张10%, 绝张0%
+    // Level 11-15: 生张50%, 熟张35%, 老张15%, 绝张0%
+    // Level 16-20: 生张40%, 熟张40%, 老张20%, 绝张0%
+    // Level 21+: 生张30%, 熟张45%, 老张25%, 绝张0%
+    
+    if (gameLevel <= 5) {
+      return { sheng: 0.70, shu: 0.25, lao: 0.05, jue: 0.00 }
+    } else if (gameLevel <= 10) {
+      return { sheng: 0.60, shu: 0.30, lao: 0.10, jue: 0.00 }
+    } else if (gameLevel <= 15) {
+      return { sheng: 0.50, shu: 0.35, lao: 0.15, jue: 0.00 }
+    } else if (gameLevel <= 20) {
+      return { sheng: 0.40, shu: 0.40, lao: 0.20, jue: 0.00 }
+    } else {
+      return { sheng: 0.30, shu: 0.45, lao: 0.25, jue: 0.00 }
+    }
+  }
+  
+  // 辅助函数: 随机选择品质
+  function randomizeTowerQuality(probs: { sheng: number; shu: number; lao: number; jue: number }): TowerQuality {
+    const rand = Math.random()
+    if (rand < probs.sheng) return 'sheng'
+    if (rand < probs.sheng + probs.shu) return 'shu'
+    if (rand < probs.sheng + probs.shu + probs.lao) return 'lao'
+    return 'jue'
+  }
   
   /**
    * 批量决定5个塔的处理方式
@@ -203,7 +232,7 @@ export function useGameEngine() {
       
       if (tower.id === keepTowerId) {
         // ✅ 保留这个塔: 留在地图上,同时添加到存储区
-        console.log(`保留塔: ${tower.gemType} 在位置 (${tower.gridPosition.row}, ${tower.gridPosition.col})`)
+        console.log(`保留塔: ${formatTileName(tower.tile)}(${formatQualityName(tower.quality)}) 在位置 (${tower.gridPosition.row}, ${tower.gridPosition.col})`)
         
         // 创建副本添加到存储区(用于合成)
         const towerCopy = { ...tower }
@@ -214,7 +243,7 @@ export function useGameEngine() {
         
       } else {
         // 其他塔变成障碍物
-        console.log(`塔变为障碍: ${tower.gemType} 在位置 (${tower.gridPosition.row}, ${tower.gridPosition.col})`)
+        console.log(`塔变为障碍: ${formatTileName(tower.tile)}(${formatQualityName(tower.quality)}) 在位置 (${tower.gridPosition.row}, ${tower.gridPosition.col})`)
         
         const index = towers.findIndex(t => t.id === tower.id)
         if (index !== -1) {
@@ -240,182 +269,256 @@ export function useGameEngine() {
   }, [calculatePath])
   
   /**
-   * 合成两个相同类型和等级的塔
+   * 合成麻将牌面子(刻子/顺子/杠)
    * 
    * 合成规则:
-   * - 必须是相同宝石类型
-   * - 必须是相同等级
-   * - 等级提升一级(chipped -> flawed -> normal -> flawless)
-   * - 最高等级无法继续合成
+   * - 刻子: 3张同花色同点数 → 单点爆发强化
+   * - 顺子: 同花色连续3点 → 链式/多目标
+   * - 杠: 4张同花色同点数 → 最强基础形态
+   * - 龙牌催化: 三元牌作为催化剂增强其他牌
+   * - 风牌终极: 四张风牌组合成终极塔
    * 
-   * @param towerId1 - 第一个塔的ID
-   * @param towerId2 - 第二个塔的ID
+   * @param selectedIds - 选中的塔ID列表
    */
-  const synthesizeTowers = useCallback((towerId1: string, towerId2: string) => {
+  const synthesizeTowers = useCallback((selectedIds: string[]) => {
     const { towers, storedTowers, grid } = gameStateRef.current
     
-    // 从存储区找到两个塔
-    const tower1Index = storedTowers.findIndex(t => t.id === towerId1)
-    const tower2Index = storedTowers.findIndex(t => t.id === towerId2)
-    
-    if (tower1Index === -1 || tower2Index === -1) {
-      console.warn('找不到要合成的塔')
+    if (selectedIds.length < 2) {
+      alert('至少需要选择2座塔才能合成!')
       return
     }
     
-    const tower1 = storedTowers[tower1Index]
-    const tower2 = storedTowers[tower2Index]
+    // 获取选中的塔
+    const selectedTowers = selectedIds.map(id => 
+      towers.find(t => t.id === id) || storedTowers.find(t => t.id === id)
+    ).filter(Boolean) as Tower[]
     
-    // 验证是否可以合成
-    if (tower1.gemType !== tower2.gemType || tower1.level !== tower2.level) {
-      alert('只能合成相同类型和等级的塔!')
+    if (selectedTowers.length < 2) {
+      alert('找不到选中的塔!')
       return
     }
     
-    // 检查是否是最高等级
-    const levels: GemLevel[] = ['chipped', 'flawed', 'normal', 'flawless']
-    const currentIndex = levels.indexOf(tower1.level)
+    // 检测是否构成面子
+    const tiles = selectedTowers.map(t => t.tile)
     
-    if (currentIndex >= levels.length - 1) {
-      alert('已经是最高等级了!')
-      return
+    // 检测刻子(3张同花色同点数)
+    if (selectedTowers.length === 3 && isKezi(tiles)) {
+      return synthesizeKezi(selectedTowers, grid, towers, storedTowers)
     }
     
-    const newLevel = levels[currentIndex + 1]
-    
-    // 创建升级后的塔(使用tower1的位置和属性)
-    const stats = getTowerStats(tower1.gemType!, newLevel)
-    const upgradedTower: Tower = {
-      ...tower1,
-      level: newLevel,
-      damage: stats.damage,
-      range: stats.range,
-      attackSpeed: stats.attackSpeed,
-      multiTarget: stats.multiTarget,
-      splashRadius: stats.splashRadius,
-      slowEffect: stats.slowEffect,
-      critChance: stats.critChance,
-      critMultiplier: stats.critMultiplier,
-      poisonDamage: stats.poisonDamage,
-      poisonDuration: stats.poisonDuration,
-      stunChance: stats.stunChance,
-      stunDuration: stats.stunDuration,
-      pierce: stats.pierce
+    // 检测顺子(同花色连续3点)
+    if (selectedTowers.length === 3 && isShunzi(tiles)) {
+      return synthesizeShunzi(selectedTowers, grid, towers, storedTowers)
     }
     
-    // 更新地图上的塔(如果存在)
-    const mapTowerIndex = towers.findIndex(t => t.id === tower1.id)
-    if (mapTowerIndex !== -1) {
-      towers[mapTowerIndex] = upgradedTower
+    // 检测杠(4张同花色同点数)
+    if (selectedTowers.length === 4 && isGang(tiles)) {
+      return synthesizeGang(selectedTowers, grid, towers, storedTowers)
     }
     
-    // ✅ 修改: 第二个塔变成障碍物,而不是消失
-    const tower2GridPos = tower2.gridPosition
-    
-    // 从towers数组移除
-    const tower2MapIndex = towers.findIndex(t => t.id === towerId2)
-    if (tower2MapIndex !== -1) {
-      towers.splice(tower2MapIndex, 1)
+    // 检测龙牌催化
+    if (hasDragonCatalyst(tiles)) {
+      return catalyzeWithDragon(selectedTowers, grid, towers, storedTowers)
     }
     
-    // 将第二个塔的位置变为障碍物
-    grid[tower2GridPos.row][tower2GridPos.col] = {
-      type: 'obstacle',
-      row: tower2GridPos.row,
-      col: tower2GridPos.col
+    // 默认: 两座相同牌面升级品质
+    if (selectedTowers.length === 2 && canUpgradeQuality(selectedTowers)) {
+      return upgradeTowerQuality(selectedTowers, grid, towers, storedTowers)
     }
     
-    console.log(`✅ 合成材料变为障碍物: (${tower2GridPos.row},${tower2GridPos.col})`)
-    
-    // 从存储区移除两个旧塔,添加升级后的塔
-    storedTowers.splice(tower2Index, 1)  // 先删除索引大的
-    storedTowers.splice(tower1Index, 1)  // 再删除索引小的
-    storedTowers.push(upgradedTower)
-    
-    // 重新计算路径(因为障碍物变化了)
-    const newPath = calculatePath(grid)
-    gameStateRef.current.currentPath = newPath
-    
-    console.log(`合成成功: ${tower1.gemType} ${tower1.level} x2 → ${upgradedTower.gemType} ${newLevel}`)
-  }, [calculatePath, getTowerStats])
+    alert('无法合成!请检查选择的塔是否符合合成规则。')
+  }, [])
   
-  /**
-   * 合成特殊塔
-   * 
-   * 特殊塔配方:
-   * - 银塔: 钻石 + 黄玉 = 多目标攻击 + 溅射伤害
-   * - 孔雀石: 黄玉 + 蛋白石 = 溅射伤害 + 减速效果
-   * - 星红宝石: 紫水晶 + 红宝石 = 纯粹伤害 + 高暴击
-   * - 月长石: 蓝宝石 + 蛋白石 = 魔法穿透 + 减速
-   * - 玉石: 翡翠 + 黑曜石 = 毒素伤害 + 眩晕
-   * - 玛瑙: 红宝石 + 黑曜石 = 纯粹伤害 + 暴击 + 眩晕
-   * 
-   * @param specialType - 特殊塔类型
-   */
-  const synthesizeSpecialTower = useCallback((specialType: SpecialTowerType) => {
-    const { towers, storedTowers, grid } = gameStateRef.current
+  // 辅助函数: 检测刻子
+  function isKezi(tiles: MahjongTile[]): boolean {
+    if (tiles.length !== 3) return false
+    const first = tiles[0]
+    if (!first.suit || !first.number) return false
+    return tiles.every(t => t.suit === first.suit && t.number === first.number)
+  }
+  
+  // 辅助函数: 检测顺子
+  function isShunzi(tiles: MahjongTile[]): boolean {
+    if (tiles.length !== 3) return false
+    const numbers = tiles.map(t => t.number).filter(Boolean).sort((a, b) => a! - b!)
+    if (numbers.length !== 3) return false
+    const suit = tiles[0].suit
+    if (!suit) return false
+    return tiles.every(t => t.suit === suit) && 
+           numbers[1] === numbers[0]! + 1 && 
+           numbers[2] === numbers[1]! + 1
+  }
+  
+  // 辅助函数: 检测杠
+  function isGang(tiles: MahjongTile[]): boolean {
+    if (tiles.length !== 4) return false
+    const first = tiles[0]
+    if (!first.suit || !first.number) return false
+    return tiles.every(t => t.suit === first.suit && t.number === first.number)
+  }
+  
+  // 辅助函数: 检测龙牌催化
+  function hasDragonCatalyst(tiles: MahjongTile[]): boolean {
+    return tiles.some(t => t.dragon)
+  }
+  
+  // 辅助函数: 检测能否升级品质
+  function canUpgradeQuality(towers: Tower[]): boolean {
+    if (towers.length !== 2) return false
+    const [t1, t2] = towers
+    return t1.tile.suit === t2.tile.suit && 
+           t1.tile.number === t2.tile.number &&
+           t1.quality === t2.quality &&
+           t1.quality !== 'jue'  // 绝张不可再升
+  }
+  
+  // 合成刻子
+  function synthesizeKezi(selectedTowers: Tower[], grid: GridCell[][], towers: Tower[], storedTowers: Tower[]) {
+    const tile = selectedTowers[0].tile
+    const quality = selectedTowers[0].quality
     
-    console.log(`开始合成特殊塔: ${specialType}`)
+    console.log(`🀄 合成刻子: ${formatTileName(tile)} x3`)
     
-    const recipe = SPECIAL_TOWER_RECIPES[specialType]
-    if (!recipe) {
-      console.error('未知的特殊塔类型:', specialType)
+    // 创建强化塔(伤害x2.5, 暴击+20%, 暴击倍率+0.5)
+    const baseStats = getTowerStats(tile, quality)
+    const upgradedTower: Tower = {
+      ...selectedTowers[0],
+      damage: Math.floor(baseStats.damage! * 2.5),
+      critChance: (baseStats.critChance || 0) + 0.2,
+      critMultiplier: (baseStats.critMultiplier || 2.0) + 0.5
+    }
+    
+    completeSynthesis(selectedTowers, upgradedTower, grid, towers, storedTowers)
+  }
+  
+  // 合成顺子
+  function synthesizeShunzi(selectedTowers: Tower[], grid: GridCell[][], towers: Tower[], storedTowers: Tower[]) {
+    const tile = selectedTowers[0].tile
+    const quality = selectedTowers[0].quality
+    
+    console.log(`🀄 合成顺子: ${formatTileName(tile)}-${tile.number! + 1}-${tile.number! + 2}`)
+    
+    // 创建多目标塔(攻击速度+30%, 穿透+2)
+    const baseStats = getTowerStats(tile, quality)
+    const upgradedTower: Tower = {
+      ...selectedTowers[0],
+      attackSpeed: baseStats.attackSpeed! * 1.3,
+      pierce: (baseStats.pierce || 0) + 2,
+      multiTarget: true
+    }
+    
+    completeSynthesis(selectedTowers, upgradedTower, grid, towers, storedTowers)
+  }
+  
+  // 合成杠
+  function synthesizeGang(selectedTowers: Tower[], grid: GridCell[][], towers: Tower[], storedTowers: Tower[]) {
+    const tile = selectedTowers[0].tile
+    const quality = selectedTowers[0].quality
+    
+    console.log(`🀄 合成杠: ${formatTileName(tile)} x4 (最强形态)`)
+    
+    // 创建最强塔(伤害x4, 范围x1.5, 暴击+30%, 穿透+3)
+    const baseStats = getTowerStats(tile, quality)
+    const upgradedTower: Tower = {
+      ...selectedTowers[0],
+      damage: Math.floor(baseStats.damage! * 4.0),
+      range: Math.floor(baseStats.range! * 1.5),
+      critChance: (baseStats.critChance || 0) + 0.3,
+      pierce: (baseStats.pierce || 0) + 3
+    }
+    
+    completeSynthesis(selectedTowers, upgradedTower, grid, towers, storedTowers)
+  }
+  
+  // 龙牌催化
+  function catalyzeWithDragon(selectedTowers: Tower[], grid: GridCell[][], towers: Tower[], storedTowers: Tower[]) {
+    // 找到龙牌和其他牌
+    const dragonTower = selectedTowers.find(t => t.tile.dragon)
+    const otherTowers = selectedTowers.filter(t => !t.tile.dragon)
+    
+    if (!dragonTower || otherTowers.length === 0) {
+      alert('龙牌催化需要至少一张数牌!')
       return
     }
     
-    // 找到需要的材料塔
-    const requiredTypes = recipe.requiredGems
-    const selectedTowers: Tower[] = []
+    const dragon = dragonTower.tile.dragon!
+    console.log(`🐉 龙牌催化: ${formatTileName(dragonTower.tile)} 催化 ${otherTowers.length} 张牌`)
     
-    for (const gemType of requiredTypes) {
-      const tower = storedTowers.find(t => t.gemType === gemType && !selectedTowers.includes(t))
-      if (!tower) {
-        alert(`缺少${gemType}!`)
-        return
+    // 根据龙牌类型应用不同效果
+    let enhancedTower: Tower
+    
+    if (dragon === 'zhong') {
+      // 红中: 进攻催化(伤害x1.5, 暴击+15%, 毒素)
+      const base = otherTowers[0]
+      const stats = getTowerStats(base.tile, base.quality)
+      enhancedTower = {
+        ...base,
+        damage: Math.floor(stats.damage! * 1.5),
+        critChance: (stats.critChance || 0) + 0.15,
+        poisonDamage: 5,
+        poisonDuration: 3000
       }
-      selectedTowers.push(tower)
+    } else if (dragon === 'fa') {
+      // 发财: 经济催化(只保留一个塔,其他变障碍,获得金币)
+      setUiState(prev => ({ ...prev, gold: prev.gold + 50 }))
+      console.log('💰 发财催化: 获得50金币')
+      completeSynthesis(otherTowers.slice(0, 1), otherTowers[0], grid, towers, storedTowers)
+      return
+    } else {
+      // 白板: 辅助催化(范围x1.3, 减速+20%, 眩晕+10%)
+      const base = otherTowers[0]
+      const stats = getTowerStats(base.tile, base.quality)
+      enhancedTower = {
+        ...base,
+        range: Math.floor(stats.range! * 1.3),
+        slowEffect: (stats.slowEffect || 0) + 0.2,
+        stunChance: (stats.stunChance || 0) + 0.1
+      }
     }
     
-    console.log('选中的材料塔:', selectedTowers.map(t => `${t.gemType} ${t.level}`))
+    completeSynthesis([dragonTower, ...otherTowers], enhancedTower, grid, towers, storedTowers)
+  }
+  
+  // 升级品质
+  function upgradeTowerQuality(selectedTowers: Tower[], grid: GridCell[][], towers: Tower[], storedTowers: Tower[]) {
+    const [t1] = selectedTowers
+    const qualities: TowerQuality[] = ['sheng', 'shu', 'lao', 'jue']
+    const currentIndex = qualities.indexOf(t1.quality)
     
-    // 创建新的特殊塔
-    const firstTower = selectedTowers[0]
-    const newTower: Tower = {
-      ...firstTower,
-      id: `tower_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      gemType: undefined,  // 清除基础宝石类型
-      specialType: specialType,  // 设置特殊塔类型
-      level: recipe.level,
-      damage: recipe.stats.damage,
-      range: recipe.stats.range,
-      attackSpeed: recipe.stats.attackSpeed,
-      damageType: recipe.stats.damageType,
-      multiTarget: recipe.stats.multiTarget,
-      splashRadius: recipe.stats.splashRadius,
-      slowEffect: recipe.stats.slowEffect,
-      critChance: recipe.stats.critChance,
-      critMultiplier: recipe.stats.critMultiplier,
-      poisonDamage: recipe.stats.poisonDamage,
-      poisonDuration: recipe.stats.poisonDuration,
-      stunChance: recipe.stats.stunChance,
-      stunDuration: recipe.stats.stunDuration,
-      pierce: recipe.stats.pierce,
-      lastAttackTime: 0
+    if (currentIndex >= qualities.length - 1) {
+      alert('已经是最高品质了!')
+      return
     }
     
-    // 如果第一个材料塔在地图上,更新地图上的塔
+    const newQuality = qualities[currentIndex + 1]
+    console.log(`⬆️ 品质升级: ${formatQualityName(t1.quality)} → ${formatQualityName(newQuality)}`)
+    
+    const stats = getTowerStats(t1.tile, newQuality)
+    const upgradedTower: Tower = {
+      ...t1,
+      quality: newQuality,
+      damage: stats.damage || t1.damage,
+      range: stats.range || t1.range,
+      attackSpeed: stats.attackSpeed || t1.attackSpeed
+    }
+    
+    completeSynthesis(selectedTowers, upgradedTower, grid, towers, storedTowers)
+  }
+  
+  // 完成合成的通用逻辑
+  function completeSynthesis(materials: Tower[], result: Tower, grid: GridCell[][], towers: Tower[], storedTowers: Tower[]) {
+    // 第一个材料塔的位置作为新塔位置
+    const firstTower = materials[0]
+    
+    // 更新地图上的塔
     const mapTowerIndex = towers.findIndex(t => t.id === firstTower.id)
     if (mapTowerIndex !== -1) {
-      towers[mapTowerIndex] = newTower
-      console.log('更新地图上的塔为新特殊塔')
-    } else {
-      // 如果不在地图上,添加到地图的空闲位置或存储区
-      console.log('材料塔不在地图上,新塔只添加到存储区')
+      towers[mapTowerIndex] = result
     }
     
-    // ✅ 修改: 其他材料塔变成障碍物
-    for (let i = 1; i < selectedTowers.length; i++) {
-      const materialTower = selectedTowers[i]
+    // 其他材料塔变成障碍物
+    for (let i = 1; i < materials.length; i++) {
+      const materialTower = materials[i]
       const materialGridPos = materialTower.gridPosition
       
       // 从towers数组移除
@@ -435,32 +538,23 @@ export function useGameEngine() {
     }
     
     // 从存储区移除所有材料塔
-    for (const tower of selectedTowers) {
+    for (const tower of materials) {
       const index = storedTowers.findIndex(t => t.id === tower.id)
       if (index !== -1) {
         storedTowers.splice(index, 1)
-        console.log(`从存储区移除材料塔: ${tower.gemType} ${tower.level}`)
       }
     }
     
     // 将新塔添加到存储区
-    storedTowers.push(newTower)
-    console.log(`合成成功! 新塔: ${specialType}, 伤害:${newTower.damage}, 范围:${newTower.range}`)
+    storedTowers.push(result)
+    console.log(`✅ 合成成功! 结果: ${formatTileName(result.tile)}(${formatQualityName(result.quality)})`)
     
-    // 重新计算路径(因为可能改变了地图上的塔)
+    // 重新计算路径
     const newPath = calculatePath(grid)
     gameStateRef.current.currentPath = newPath
-    
-    const specialNameMap: Record<SpecialTowerType, string> = {
-      silver: '银塔',
-      malachite: '孔雀石',
-      starRuby: '星红宝石',
-      moonstone: '月长石',
-      jade: '玉石',
-      onyx: '玛瑙'
-    }
-    alert(`成功合成${specialNameMap[specialType]}!`)
-  }, [calculatePath])
+  }
+  
+
   
   /**
    * ✅ 新增: 升级游戏等级
@@ -488,11 +582,12 @@ export function useGameEngine() {
     
     console.log(`🎉 游戏等级提升: Lv.${oldLevel} → Lv.${newLevel}`)
     console.log(`  消耗金币: ${upgradeCost}`)
-    console.log(`  新的塔等级概率:`)
-    const probs = getTowerLevelProbabilities(newLevel)
-    console.log(`    粗制(chipped): ${(probs.chipped * 100).toFixed(0)}%`)
-    console.log(`    普通(regular): ${(probs.regular * 100).toFixed(0)}%`)
-    console.log(`    精制(polished): ${(probs.polished * 100).toFixed(0)}%`)
+    console.log(`  新的塔品质概率:`)
+    const probs = getTowerQualityProbabilities(newLevel)
+    console.log(`    生张(sheng): ${(probs.sheng * 100).toFixed(0)}%`)
+    console.log(`    熟张(shu): ${(probs.shu * 100).toFixed(0)}%`)
+    console.log(`    老张(lao): ${(probs.lao * 100).toFixed(0)}%`)
+    console.log(`    绝张(jue): ${(probs.jue * 100).toFixed(0)}%`)
     
     alert(`成功升级到Lv.${newLevel}!\n高等级塔的出现概率提升了!`)
   }, [uiState.gold, uiState.gameLevel])
@@ -785,11 +880,10 @@ export function useGameEngine() {
         gameStateRef.current.bullets.push(bullet)
         tower.lastAttackTime = now
         
-        console.log(`塔攻击: ${tower.gemType || tower.specialType}, 目标: ${target.type}, 伤害: ${tower.damage}`)
+        console.log(`塔攻击: ${formatTileName(tower.tile)}(${formatQualityName(tower.quality)}), 目标: ${target.type}, 伤害: ${tower.damage}`)
         
-        // 🎵 播放攻击音效
-        const soundType: SoundType = tower.specialType || (tower.gemType as SoundType)
-        soundManager.play(soundType)
+        // 🎵 播放攻击音效(暂时使用默认音效)
+        soundManager.play('amethyst' as any)
       }
     })
   }, [])
@@ -1203,12 +1297,16 @@ export function useGameEngine() {
    * @param tower - 塔对象
    */
   const drawTower = (ctx: CanvasRenderingContext2D, tower: Tower) => {
-    // 确定颜色
+    // 确定颜色(根据花色)
     let color: string
-    if (tower.specialType) {
-      color = SPECIAL_TOWER_COLORS[tower.specialType]
-    } else if (tower.gemType) {
-      color = GEM_COLORS[tower.gemType]
+    if (tower.tile.suit) {
+      const suitColors = { wan: '#E53935', tiao: '#43A047', tong: '#1E88E5' }
+      color = suitColors[tower.tile.suit]
+    } else if (tower.tile.dragon) {
+      const dragonColors = { zhong: '#D32F2F', fa: '#388E3C', bai: '#FFFFFF' }
+      color = dragonColors[tower.tile.dragon]
+    } else if (tower.tile.wind) {
+      color = '#7B1FA2'
     } else {
       color = '#CCCCCC'
     }
@@ -1232,20 +1330,30 @@ export function useGameEngine() {
       36
     )
     
-    // 绘制等级标识
-    const levelIcon = LEVEL_ICONS[tower.level]
-    ctx.fillStyle = tower.gemType === 'diamond' || tower.specialType === 'moonstone' ? '#333' : 'white'
-    ctx.font = 'bold 14px Arial'
+    // 绘制麻将牌面标识
+    ctx.fillStyle = 'white'
+    ctx.font = 'bold 12px Arial'
     ctx.textAlign = 'center'
     ctx.textBaseline = 'middle'
-    ctx.fillText(levelIcon, tower.position.x, tower.position.y)
     
-    // 绘制特效标识
-    if (tower.multiTarget) {
-      ctx.fillStyle = '#FFD700'
-      ctx.font = '10px Arial'
-      ctx.fillText(`×${tower.multiTarget}`, tower.position.x, tower.position.y + 12)
+    let label = ''
+    if (tower.tile.suit && tower.tile.number) {
+      const suitNames = { wan: '万', tiao: '条', tong: '筒' }
+      label = `${tower.tile.number}${suitNames[tower.tile.suit]}`
+    } else if (tower.tile.dragon) {
+      const dragonNames = { zhong: '中', fa: '发', bai: '白' }
+      label = dragonNames[tower.tile.dragon]
+    } else if (tower.tile.wind) {
+      const windNames = { dong: '东', nan: '南', xi: '西', bei: '北' }
+      label = windNames[tower.tile.wind]
     }
+    
+    ctx.fillText(label, tower.position.x, tower.position.y)
+    
+    // 绘制品质标识(小字在下方)
+    const qualityLabels = { sheng: '生', shu: '熟', lao: '老', jue: '绝' }
+    ctx.font = '8px Arial'
+    ctx.fillText(qualityLabels[tower.quality], tower.position.x, tower.position.y + 10)
     
     // 绘制溅射范围(仅当选中时)
     // 这里可以后续添加交互逻辑
@@ -1287,7 +1395,6 @@ export function useGameEngine() {
     placeTower,
     finalizeTowers,
     synthesizeTowers,
-    synthesizeSpecialTower,  // 新增
     upgradeGameLevel,  // ✅ 新增: 升级游戏等级
     startWave,
     start,

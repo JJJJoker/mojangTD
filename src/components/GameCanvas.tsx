@@ -23,7 +23,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const ctx = canvasRef.current.getContext('2d')
     if (!ctx) return
     
-    const dpr = window.devicePixelRatio || 1
+    // const dpr = window.devicePixelRatio || 1
     const { cellSize } = MAP_CONFIG
     
     // 绘制路径(半透明红色虚线)
@@ -56,7 +56,7 @@ export const GameCanvas: React.FC<GameCanvasProps> = ({
     const ctx = canvasRef.current.getContext('2d')
     if (!ctx) return
     
-    const dpr = window.devicePixelRatio || 1
+    // const dpr = window.devicePixelRatio || 1
     const { cellSize } = MAP_CONFIG
     
     console.log(`📍 开始绘制${WAYPOINTS.length}个必经点`)

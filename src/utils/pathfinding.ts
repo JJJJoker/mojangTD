@@ -1,5 +1,6 @@
 import type { GridCell } from '../types/game'
-import { MAP_CONFIG, WAYPOINTS } from '../config/map'
+// import { MAP_CONFIG, WAYPOINTS } from '../config/map'
+import { WAYPOINTS } from '../config/map'
 
 /**
  * 查找从起点经过所有必经点到终点的路径
@@ -14,8 +15,8 @@ import { MAP_CONFIG, WAYPOINTS } from '../config/map'
  */
 export function findPath(
   grid: GridCell[][],
-  start: { row: number; col: number },
-  end: { row: number; col: number }
+  // start: { row: number; col: number },
+  // end: { row: number; col: number }
 ): { row: number; col: number }[] | null {
   const rows = grid.length
   
@@ -207,9 +208,9 @@ function findPathSegment(
  */
 export function canPlaceTower(
   grid: GridCell[][],
-  testPosition: { row: number; col: number },
-  startPos: { row: number; col: number },
-  endPos: { row: number; col: number }
+  testPosition: { row: number; col: number }
+  // startPos: { row: number; col: number },
+  // endPos: { row: number; col: number }
 ): boolean {
   const { row, col } = testPosition
   
@@ -230,7 +231,7 @@ export function canPlaceTower(
   grid[row][col].type = 'tower'
   
   // 尝试寻路,检查是否还能从起点经过矿坑到达终点
-  const path = findPath(grid, startPos, endPos)
+  const path = findPath(grid)
   
   // 恢复原状(重要:必须恢复,否则会影响游戏状态)
   grid[row][col].type = originalType

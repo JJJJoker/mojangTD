@@ -36,7 +36,7 @@ export function usePathfinding() {
    * @returns 路径点数组,如果无法到达则返回null
    */
   const calculatePath = useCallback((grid: GridCell[][]) => {
-    return findPath(grid, startPos, endPos)
+    return findPath(grid)
   }, [startPos, endPos])
   
   /**
@@ -57,7 +57,7 @@ export function usePathfinding() {
     grid: GridCell[][],
     position: { row: number; col: number }
   ) => {
-    return canPlaceTower(grid, position, startPos, endPos)
+    return canPlaceTower(grid, position)
   }, [startPos, endPos])
   
   /**
@@ -76,7 +76,7 @@ export function usePathfinding() {
     grid: GridCell[][],
     position: { row: number; col: number }
   ): boolean => {
-    return canPlaceTower(grid, position, startPos, endPos)
+    return canPlaceTower(grid, position)
   }, [startPos, endPos])
   
   /**
@@ -93,7 +93,7 @@ export function usePathfinding() {
     positions: Array<{ row: number; col: number }>
   ): boolean[] => {
     return positions.map(position => 
-      canPlaceTower(grid, position, startPos, endPos)
+      canPlaceTower(grid, position)
     )
   }, [startPos, endPos])
   

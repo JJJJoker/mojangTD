@@ -11,7 +11,6 @@ export const GameEngineTest: React.FC = () => {
   const {
     uiState,
     gameStateRef,
-    selectGem,
     startWave,
     stop,
     pause,
@@ -39,24 +38,13 @@ export const GameEngineTest: React.FC = () => {
         <p>矿坑生命: {uiState.mineHealth} / {uiState.maxMineHealth}</p>
         <p>波次: {uiState.wave}</p>
         <p>状态: {uiState.gameStatus}</p>
-        <p>选中宝石: {uiState.selectedGem || '无'}</p>
+        <p>选中牌面: {uiState.selectedGem ? JSON.stringify(uiState.selectedGem) : '无'}</p>
       </div>
 
       {/* 控制按钮 */}
       <div style={{ marginBottom: '20px' }}>
-        <h3>宝石选择</h3>
-        <button onClick={() => selectGem('amethyst')} style={{ marginRight: '10px' }}>
-          紫水晶 (对空)
-        </button>
-        <button onClick={() => selectGem('diamond')} style={{ marginRight: '10px' }}>
-          钻石 (对地)
-        </button>
-        <button onClick={() => selectGem('topaz')} style={{ marginRight: '10px' }}>
-          黄玉 (多重)
-        </button>
-        <button onClick={() => selectGem('opal')}>
-          蛋白石 (光环)
-        </button>
+        <h3>测试说明</h3>
+        <p>麻将牌系统已集成,点击地图格子随机生成麻将牌面塔</p>
       </div>
 
       <div style={{ marginBottom: '20px' }}>

@@ -10,7 +10,7 @@ interface GameUIProps {
     maxMineHealth: number
     wave: number
     gameStatus: 'preparing' | 'playing' | 'paused' | 'game_over' | 'victory'
-    selectedGem: string | null
+    selectedGem: any | null  // ✅ 改为any以兼容MahjongTile
     canPlaceTowers: boolean
     gameLevel: number  // ✅ 新增: 游戏等级
   }

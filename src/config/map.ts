@@ -76,7 +76,7 @@ export function initializeGrid(): GridCell[][] {
   
   // 输出路径流程
   console.log('🛤️ 路径流程:')
-  const pathFlow = WAYPOINTS.map((wp, idx) => `${wp.label}(${wp.row},${wp.col})`).join(' → ')
+  const pathFlow = WAYPOINTS.map((wp) => `${wp.label}(${wp.row},${wp.col})`).join(' → ')
   console.log(`  ${pathFlow}`)
   
   return grid

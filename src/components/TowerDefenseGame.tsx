@@ -5,7 +5,8 @@ import { GameUI } from './GameUI'
 import { BuildPanel } from './BuildPanel'
 import { SynthesisDialog } from './SynthesisDialog'
 import { usePathfinding } from '../hooks/usePathfinding'
-import type { GemType, GemLevel, Tower } from '../types/game'
+import type { Tower } from '../types/game'
+import { formatTileName, formatQualityName } from '../config/towers'
 
 export const TowerDefenseGame: React.FC = () => {
   const {
@@ -14,7 +15,6 @@ export const TowerDefenseGame: React.FC = () => {
     placeTower,
     finalizeTowers,
     synthesizeTowers,
-    synthesizeSpecialTower,  // 新增
     upgradeGameLevel,  // ✅ 新增: 升级游戏等级
     startWave,
     start,
@@ -31,38 +31,7 @@ export const TowerDefenseGame: React.FC = () => {
   const [selectedTowerForDecision, setSelectedTowerForDecision] = useState<Tower | null>(null)
   const [showSynthesisDialog, setShowSynthesisDialog] = useState(false)
 
-  // 辅助函数:获取宝石颜色
-  const getGemColor = (gemType: GemType): string => {
-    const colors: Record<GemType, string> = {
-      amethyst: '#9370DB',
-      diamond: '#FFFFFF',
-      topaz: '#FFD700',
-      opal: '#98FB98'
-    }
-    return colors[gemType] || '#CCCCCC'
-  }
 
-  // 辅助函数:获取宝石名称
-  const getGemName = (gemType: GemType): string => {
-    const names: Record<GemType, string> = {
-      amethyst: '紫水晶',
-      diamond: '钻石',
-      topaz: '黄玉',
-      opal: '蛋白石'
-    }
-    return names[gemType] || '未知宝石'
-  }
-
-  // 辅助函数:获取等级名称
-  const getLevelName = (level: GemLevel): string => {
-    const names: Record<GemLevel, string> = {
-      chipped: '碎裂',
-      flawed: '有瑕',
-      normal: '普通',
-      flawless: '无瑕'
-    }
-    return names[level] || '未知'
-  }
 
   const handleCanvasClick = useCallback((gridPos: { row: number; col: number }) => {
     const { grid, towers } = gameStateRef.current
@@ -105,10 +74,10 @@ export const TowerDefenseGame: React.FC = () => {
       }
       
       // 消耗木材
-      setUiState(prev => ({ ...prev, wood: prev.wood - 1 }))
+      // setUiState 已经在 placeTower 中处理,这里不需要重复调用
       
       // 重新计算路径
-      const newPath = calculatePath()
+      const newPath = calculatePath(grid)
       gameStateRef.current.currentPath = newPath
       
       console.log(`✅ 已删除障碍物(${gridPos.row},${gridPos.col}),消耗1木材,剩余:${uiState.wood - 1}`)
@@ -240,7 +209,9 @@ export const TowerDefenseGame: React.FC = () => {
                   <div style={{
                     width: '60px',
                     height: '60px',
-                    background: getGemColor(selectedTowerForDecision.gemType!),
+                    background: selectedTowerForDecision.tile.suit 
+                      ? (selectedTowerForDecision.tile.suit === 'wan' ? '#E53935' : selectedTowerForDecision.tile.suit === 'tiao' ? '#43A047' : '#1E88E5')
+                      : (selectedTowerForDecision.tile.dragon ? '#D32F2F' : '#7B1FA2'),
                     borderRadius: '8px',
                     display: 'flex',
                     alignItems: 'center',
@@ -250,22 +221,25 @@ export const TowerDefenseGame: React.FC = () => {
                     color: 'white',
                     border: '3px solid #333'
                   }}>
-                    {selectedTowerForDecision.level.substring(0, 1).toUpperCase()}
+                    {selectedTowerForDecision.tile.number || 
+                     (selectedTowerForDecision.tile.dragon === 'zhong' ? '中' : 
+                      selectedTowerForDecision.tile.dragon === 'fa' ? '发' : 
+                      selectedTowerForDecision.tile.dragon === 'bai' ? '白' : '?')}
                   </div>
                   
                   {/* 塔的信息 */}
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#333', marginBottom: '5px' }}>
-                      {getGemName(selectedTowerForDecision.gemType!)}
+                      {formatTileName(selectedTowerForDecision.tile)}
                     </div>
                     <div style={{ fontSize: '14px', color: '#666' }}>
-                      等级: {getLevelName(selectedTowerForDecision.level)}
+                      品质: {formatQualityName(selectedTowerForDecision.quality)}
                     </div>
                     <div style={{ fontSize: '14px', color: '#666' }}>
                       伤害: {selectedTowerForDecision.damage} | 范围: {selectedTowerForDecision.range}
                     </div>
                     <div style={{ fontSize: '14px', color: '#666' }}>
-                      攻击速度: {selectedTowerForDecision.attackSpeed}ms
+                      攻击速度: {selectedTowerForDecision.attackSpeed.toFixed(2)}s
                     </div>
                   </div>
                 </div>
@@ -326,14 +300,9 @@ export const TowerDefenseGame: React.FC = () => {
       {showSynthesisDialog && (
         <SynthesisDialog
           storedTowers={gameStateRef.current.storedTowers}
-          onSynthesize={(id1, id2) => {
-            console.log('尝试合成:', id1, id2)
-            synthesizeTowers(id1, id2)
-            setShowSynthesisDialog(false)
-          }}
-          onSynthesizeSpecial={(specialType) => {  // 新增
-            console.log('合成特殊塔:', specialType)
-            synthesizeSpecialTower(specialType)
+          onSynthesize={(selectedIds) => {
+            console.log('尝试合成:', selectedIds)
+            synthesizeTowers(selectedIds)
             setShowSynthesisDialog(false)
           }}
           onClose={() => setShowSynthesisDialog(false)}

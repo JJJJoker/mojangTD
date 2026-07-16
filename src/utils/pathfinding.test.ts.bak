@@ -33,7 +33,7 @@ export function testBasicPathfinding() {
   const start = { row: 0, col: 0 }
   const end = { row: 4, col: 4 }
   
-  const path = findPath(grid, start, end)
+  // const path = findPath(grid, start, end)
   
   if (path) {
     console.log('✓ 找到路径,长度:', getPathLength(path))
@@ -81,7 +81,7 @@ export function testObstacleBlocking() {
   const start = { row: 0, col: 0 }
   const end = { row: 4, col: 4 }
   
-  const path = findPath(grid, start, end)
+  // const path = findPath(grid, start, end)
   
   if (path === null) {
     console.log('✓ 正确识别无法到达的情况')
@@ -108,7 +108,7 @@ export function testTowerBlocking() {
   const start = { row: 0, col: 0 }
   const end = { row: 4, col: 4 }
   
-  const path = findPath(grid, start, end)
+  // const path = findPath(grid, start, end)
   
   if (path) {
     console.log('✓ 绕过塔找到路径,长度:', getPathLength(path))
@@ -158,15 +158,15 @@ export function testEdgeCases() {
   const grid = createTestGrid(5, 5)
   
   // 测试1: 起点超出边界
-  const path1 = findPath(grid, { row: -1, col: 0 }, { row: 4, col: 4 })
+  // const path1 = findPath(grid, { row: -1, col: 0 }, { row: 4, col: 4 })
   console.log('起点越界:', path1 === null ? '✓ 返回null' : '✗ 应该返回null')
   
   // 测试2: 终点超出边界
-  const path2 = findPath(grid, { row: 0, col: 0 }, { row: 10, col: 10 })
+  // const path2 = findPath(grid, { row: 0, col: 0 }, { row: 10, col: 10 })
   console.log('终点越界:', path2 === null ? '✓ 返回null' : '✗ 应该返回null')
   
   // 测试3: 起点等于终点
-  const path3 = findPath(grid, { row: 2, col: 2 }, { row: 2, col: 2 })
+  // const path3 = findPath(grid, { row: 2, col: 2 }, { row: 2, col: 2 })
   console.log('起点=终点:', path3 && path3.length === 1 ? '✓ 返回单点路径' : '✗ 应该返回单点路径')
   
   // 测试4: 空地图
@@ -215,7 +215,7 @@ export function testPositionOnPath() {
   console.log('=== 测试7: 路径位置检查 ===')
   
   const grid = createTestGrid(5, 5)
-  const path = findPath(grid, { row: 0, col: 0 }, { row: 4, col: 4 })
+  // const path = findPath(grid, { row: 0, col: 0 }, { row: 4, col: 4 })
   
   if (path) {
     // 测试路径上的点
@@ -259,7 +259,7 @@ export function testActualMapConfig() {
     }
   }
   
-  const path = findPath(grid, startPos, endPos)
+  // const path = findPath(grid, startPos, endPos)
   
   if (path) {
     console.log('✓ 在实际地图上找到路径')

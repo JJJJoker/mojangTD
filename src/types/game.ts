@@ -4,31 +4,76 @@ export interface Position {
   y: number
 }
 
-// 宝石塔类型 - 8种基础宝石
-export type GemType = 
-  | 'amethyst'    // 紫水晶 - 高伤害单体
-  | 'diamond'     // 钻石 - 快速多目标
-  | 'topaz'       // 黄玉 - 溅射范围
-  | 'opal'        // 蛋白石 - 减速
-  | 'ruby'        // 红宝石 - 纯粹伤害
-  | 'sapphire'    // 蓝宝石 - 魔法穿透
-  | 'emerald'     // 翡翠 - 毒素持续伤害
-  | 'obsidian'    // 黑曜石 - 眩晕/冻结
+// ===== 麻将牌类型定义 =====
 
-// 宝石等级
-export type GemLevel = 'chipped' | 'flawed' | 'normal' | 'flawless'
+/**
+ * 数牌花色(万条筒)
+ */
+export type MahjongSuit = 'wan' | 'tiao' | 'tong'
 
-// 塔等级(与GemLevel相同,用于概率配置)
-export type TowerLevel = 'chipped' | 'regular' | 'polished'
+/**
+ * 点数1-9
+ */
+export type MahjongNumber = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9
 
-// 特殊塔类型 - 6种合成塔
-export type SpecialTowerType = 
-  | 'silver'      // 银塔
-  | 'malachite'   // 孔雀石
-  | 'starRuby'    // 星红宝石
-  | 'moonstone'   // 月长石
-  | 'jade'        // 玉石
-  | 'onyx'        // 玛瑙
+/**
+ * 三元牌(中发白)
+ */
+export type DragonTile = 'zhong' | 'fa' | 'bai'
+
+/**
+ * 风牌(东南西北)
+ */
+export type WindTile = 'dong' | 'nan' | 'xi' | 'bei'
+
+/**
+ * 麻将牌面
+ */
+export interface MahjongTile {
+  suit?: MahjongSuit      // 数牌花色(万条筒)
+  number?: MahjongNumber  // 点数1-9
+  dragon?: DragonTile     // 三元牌
+  wind?: WindTile         // 风牌
+}
+
+/**
+ * 塔品质(替代原GemLevel)
+ * 生张→熟张→老张→绝张
+ */
+export type TowerQuality = 'sheng' | 'shu' | 'lao' | 'jue'
+
+/**
+ * 基础塔配置(使用麻将牌面)
+ */
+export interface BaseTowerConfig {
+  tile: MahjongTile       // 牌面
+  quality: TowerQuality   // 品质
+  damage: number
+  range: number
+  attackSpeed: number
+  damageType: 'physical' | 'magic' | 'pure'
+  multiTarget?: boolean
+  splashRadius?: number
+  slowEffect?: number
+  critChance?: number
+  critMultiplier?: number
+  pierce?: number
+  poisonDamage?: number
+  poisonDuration?: number
+  stunChance?: number
+  stunDuration?: number
+}
+
+/**
+ * 特殊塔(保留原有结构,改为麻将番型命名)
+ */
+export type SpecialFanType = 
+  | 'pinghu'        // 平胡(原silver)
+  | 'qingyise'      // 清一色(原malachite)
+  | 'qidui'         // 七对(原starRuby)
+  | 'hunquandaiyao' // 混全带幺(原moonstone)
+  | 'sanyuan'       // 大三元(原jade)
+  | 'sixi'          // 大四喜(原onyx)
 
 // 敌人类
 export interface Enemy {
@@ -60,9 +105,8 @@ export interface Enemy {
 // 防御塔类
 export interface Tower {
   id: string
-  gemType?: GemType           // 基础宝石类型
-  specialType?: SpecialTowerType  // 特殊塔类型
-  level: GemLevel             // 等级
+  tile: MahjongTile           // ✅ 改为tile
+  quality: TowerQuality       // ✅ 改为quality
   gridPosition: { row: number; col: number }
   position: Position
   damage: number
@@ -72,7 +116,7 @@ export interface Tower {
   damageType: 'physical' | 'magic' | 'pure'  // 伤害类型
   
   // 特效属性
-  multiTarget?: number          // 多目标数量
+  multiTarget?: boolean          // 多目标数量
   splashRadius?: number         // 溅射半径
   slowEffect?: number           // 减速效果
   critChance?: number           // 暴击率
@@ -81,7 +125,7 @@ export interface Tower {
   poisonDuration?: number       // 毒素持续时间(ms)
   stunChance?: number           // 眩晕概率
   stunDuration?: number         // 眩晕持续时间(ms)
-  pierce?: boolean              // 是否穿透
+  pierce?: number              // 穿透数量
   targetId?: string             // 当前锁定目标
 }
 
@@ -103,7 +147,7 @@ export interface Bullet {
   poisonDuration?: number
   stunChance?: number
   stunDuration?: number
-  pierce?: boolean
+  pierce?: number
 }
 
 // 地图格子
@@ -142,9 +186,9 @@ export interface GameState {
   grid: GridCell[][]     // 地图网格
   storedTowers: Tower[]  // 存储的塔(跨波次保留)
   gameStatus: 'preparing' | 'playing' | 'paused' | 'game_over' | 'victory'
-  selectedGem: GemType | null  // 当前选中的宝石类型
+  selectedGem: MahjongTile | null  // ✅ 当前选中的麻将牌面
   currentPath: { row: number; col: number }[] | null  // 当前BFS路径
-  availableGems: GemType[]  // 当前波可用的5个随机宝石
+  availableGems: MahjongTile[]  // ✅ 当前波可用的随机麻将牌
 }
 
 // UI状态接口
