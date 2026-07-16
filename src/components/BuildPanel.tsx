@@ -1,13 +1,11 @@
 import React from 'react'
 
 interface BuildPanelProps {
-  wood: number
   placedCount: number
   canPlaceTowers: boolean
 }
 
 export const BuildPanel: React.FC<BuildPanelProps> = ({
-  wood,
   placedCount,
   canPlaceTowers
 }) => {
@@ -43,28 +41,14 @@ export const BuildPanel: React.FC<BuildPanelProps> = ({
             <ol style={{ margin: '0', paddingLeft: '20px' }}>
               <li>点击地图空地放置塔</li>
               <li>每次随机生成1个麻将牌面</li>
-              <li>共放置5次(消耗5木材)</li>
+              <li>共放置5次</li>
               <li>选择1个保留,其余变障碍</li>
-              <li style={{ color: '#FF6B6B', fontWeight: 'bold' }}>✨ 点击障碍物消耗1木材删除</li>
-              <li style={{ color: '#4CAF50', fontWeight: 'bold' }}>✨ 可直接在障碍物上建新塔</li>
+              <li style={{ color: '#FF6B6B', fontWeight: 'bold' }}>✨ 点击障碍物删除(无需消耗)</li>
               <li style={{ color: '#FFA726', fontWeight: 'bold' }}>✨ 合成后材料变障碍物</li>
               <li style={{ color: '#9C27B0', fontWeight: 'bold' }}>🀄 刻子/顺子/杠可强力合成</li>
             </ol>
           </>
         )}
-      </div>
-      
-      <div style={{
-        marginTop: '15px',
-        padding: '10px',
-        background: wood > 0 ? '#E8F5E9' : '#FFEBEE',
-        borderRadius: '4px',
-        textAlign: 'center'
-      }}>
-        <div style={{ fontSize: '24px', fontWeight: 'bold', color: wood > 0 ? '#2E7D32' : '#C62828' }}>
-          {wood}
-        </div>
-        <div style={{ fontSize: '12px', color: '#666' }}>剩余木材</div>
       </div>
       
       {placedCount > 0 && (

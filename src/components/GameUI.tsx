@@ -1,10 +1,9 @@
 import React, { useState } from 'react'
 import { soundManager } from '../utils/audio'
-import { calculateUpgradeCost } from '../config/towers'
+
 
 interface GameUIProps {
   uiState: {
-    wood: number
     gold: number
     mineHealth: number
     maxMineHealth: number
@@ -12,13 +11,13 @@ interface GameUIProps {
     gameStatus: 'preparing' | 'playing' | 'paused' | 'game_over' | 'victory'
     selectedGem: any | null  // ✅ 改为any以兼容MahjongTile
     canPlaceTowers: boolean
-    gameLevel: number  // ✅ 新增: 游戏等级
+    deckRemaining: number  // ✅ 新增: 牌山剩余数量
+    currentPhase: number   // ✅ 新增: 当前阶段
   }
   onStartWave: () => void
   onPause: () => void
   onResume: () => void
   onOpenSynthesis?: () => void
-  onUpgradeGameLevel?: () => void  // ✅ 新增: 升级游戏等级回调
 }
 
 export const GameUI: React.FC<GameUIProps> = ({
@@ -26,8 +25,7 @@ export const GameUI: React.FC<GameUIProps> = ({
   onStartWave,
   onPause,
   onResume,
-  onOpenSynthesis,
-  onUpgradeGameLevel
+  onOpenSynthesis
 }) => {
   const [soundEnabled, setSoundEnabled] = useState(true)
   
@@ -51,51 +49,43 @@ export const GameUI: React.FC<GameUIProps> = ({
       {/* 资源显示 */}
       <div style={{ display: 'flex', gap: '20px' }}>
         <div style={{ textAlign: 'center' }}>
-          <div style={{ fontSize: '12px', opacity: 0.9 }}>木材</div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{uiState.wood}</div>
-        </div>
-        
-        <div style={{ textAlign: 'center' }}>
           <div style={{ fontSize: '12px', opacity: 0.9 }}>金币</div>
           <div style={{ fontSize: '24px', fontWeight: 'bold' }}>{uiState.gold}</div>
         </div>
-      </div>
-      
-      {/* ✅ 新增: 游戏等级显示 */}
-      <div style={{
-        background: '#E1BEE7',
-        padding: '8px 15px',
-        borderRadius: '8px',
-        marginRight: '10px'
-      }}>
-        <div style={{ fontSize: '12px', color: '#666' }}>游戏等级</div>
-        <div style={{ fontSize: '20px', fontWeight: 'bold', color: '#9C27B0' }}>
-          Lv.{uiState.gameLevel}
+        
+        {/* ✅ 新增: 牌山信息 */}
+        <div style={{ 
+          textAlign: 'center',
+          position: 'relative'
+        }}>
+          <div style={{ fontSize: '12px', opacity: 0.9, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+            <span style={{ fontSize: '18px' }}>🀄</span>
+            <span>牌山</span>
+          </div>
+          <div style={{ 
+            fontSize: '24px', 
+            fontWeight: 'bold',
+            color: uiState.deckRemaining < 10 ? '#ff6b6b' : 'white'
+          }}>
+            {uiState.deckRemaining}张
+          </div>
+          {uiState.deckRemaining < 5 && (
+            <div style={{
+              position: 'absolute',
+              top: '-20px',
+              left: '50%',
+              transform: 'translateX(-50%)',
+              color: '#ffa500',
+              fontSize: '11px',
+              fontWeight: 'bold',
+              whiteSpace: 'nowrap',
+              animation: 'blink 1s infinite'
+            }}>
+              ⚠️ 即将进入阶段{uiState.currentPhase + 1}!
+            </div>
+          )}
         </div>
       </div>
-      
-      {/* ✅ 新增: 升级按钮 */}
-      {onUpgradeGameLevel && (
-        <button
-          onClick={onUpgradeGameLevel}
-          disabled={uiState.gold < calculateUpgradeCost(uiState.gameLevel)}
-          style={{
-            padding: '8px 15px',
-            background: uiState.gold >= calculateUpgradeCost(uiState.gameLevel) ? '#9C27B0' : '#ccc',
-            color: 'white',
-            border: 'none',
-            borderRadius: '8px',
-            cursor: uiState.gold >= calculateUpgradeCost(uiState.gameLevel) ? 'pointer' : 'not-allowed',
-            fontSize: '14px',
-            fontWeight: 'bold'
-          }}
-        >
-          升级<br/>
-          <span style={{ fontSize: '11px' }}>
-            {calculateUpgradeCost(uiState.gameLevel)}
-          </span>
-        </button>
-      )}
       
       {/* 分隔线 */}
       <div style={{ width: '2px', height: '40px', background: 'rgba(255,255,255,0.3)' }} />
@@ -115,7 +105,7 @@ export const GameUI: React.FC<GameUIProps> = ({
       <div style={{ textAlign: 'center' }}>
         <div style={{ fontSize: '12px', opacity: 0.9 }}>波次</div>
         <div style={{ fontSize: '24px', fontWeight: 'bold' }}>
-          {uiState.wave}/12
+          {uiState.wave}/50
         </div>
       </div>
       
@@ -140,28 +130,28 @@ export const GameUI: React.FC<GameUIProps> = ({
         {uiState.gameStatus === 'preparing' && (
           <button
             onClick={onStartWave}
-            disabled={uiState.wave >= 12}
+            disabled={uiState.wave >= 50}
             style={{
               padding: '10px 20px',
               background: '#4CAF50',
               color: 'white',
               border: 'none',
               borderRadius: '4px',
-              cursor: uiState.wave >= 12 ? 'not-allowed' : 'pointer',
+              cursor: uiState.wave >= 50 ? 'not-allowed' : 'pointer',
               fontSize: '16px',
               fontWeight: 'bold',
-              opacity: uiState.wave >= 12 ? 0.5 : 1,
+              opacity: uiState.wave >= 50 ? 0.5 : 1,
               transition: 'all 0.2s'
             }}
             onMouseEnter={(e) => {
-              if (uiState.wave < 12) {
+              if (uiState.wave < 50) {
                 e.currentTarget.style.background = '#45a049'
                 e.currentTarget.style.transform = 'translateY(-2px)'
                 e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'
               }
             }}
             onMouseLeave={(e) => {
-              if (uiState.wave < 12) {
+              if (uiState.wave < 50) {
                 e.currentTarget.style.background = '#4CAF50'
                 e.currentTarget.style.transform = 'translateY(0)'
                 e.currentTarget.style.boxShadow = 'none'
@@ -230,35 +220,7 @@ export const GameUI: React.FC<GameUIProps> = ({
           </button>
         )}
         
-        {/* 合成按钮 */}
-        {onOpenSynthesis && (
-          <button
-            onClick={onOpenSynthesis}
-            style={{
-              padding: '10px 20px',
-              background: '#FF9800',
-              color: 'white',
-              border: 'none',
-              borderRadius: '4px',
-              cursor: 'pointer',
-              fontSize: '16px',
-              fontWeight: 'bold',
-              transition: 'all 0.2s'
-            }}
-            onMouseEnter={(e) => {
-              e.currentTarget.style.background = '#F57C00'
-              e.currentTarget.style.transform = 'translateY(-2px)'
-              e.currentTarget.style.boxShadow = '0 4px 8px rgba(0,0,0,0.2)'
-            }}
-            onMouseLeave={(e) => {
-              e.currentTarget.style.background = '#FF9800'
-              e.currentTarget.style.transform = 'translateY(0)'
-              e.currentTarget.style.boxShadow = 'none'
-            }}
-          >
-            🔧 合成
-          </button>
-        )}
+
         
         {/* 音效开关按钮 */}
         <button

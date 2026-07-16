@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import type { Tower } from '../types/game'
-import { formatTileName, formatQualityName } from '../config/towers'
+import { formatTileName } from '../config/towers'
 
 interface SynthesisDialogProps {
   storedTowers: Tower[]
@@ -44,12 +44,12 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
   // 获取麻将牌面颜色
   const getTileColor = (tower: Tower): string => {
     if (tower.tile.suit) {
-      const suitColors = {
+      const suitColors: Record<string, string> = {
         wan: '#E53935',  // 万子 - 红色
         tiao: '#43A047', // 条子 - 绿色
         tong: '#1E88E5'  // 筒子 - 蓝色
       }
-      return suitColors[tower.tile.suit]
+      return suitColors[tower.tile.suit] || '#333'
     }
     if (tower.tile.dragon) {
       const dragonColors = {
@@ -65,16 +65,7 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
     return '#9E9E9E'
   }
 
-  // 获取品质边框颜色
-  const getQualityBorderColor = (quality: string): string => {
-    const colors = {
-      sheng: '#8BC34A', // 生张 - 浅绿
-      shu: '#FF9800',   // 熟张 - 橙色
-      lao: '#F44336',   // 老张 - 红色
-      jue: '#9C27B0'    // 绝张 - 紫色
-    }
-    return colors[quality as keyof typeof colors] || '#9E9E9E'
-  }
+  // ❌ 删除品质边框颜色函数(已移除品质系统)
 
   return (
     <div style={{
@@ -139,7 +130,6 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
             <li><strong>顺子:</strong> 同花色连续3点 → 攻速+30%, 穿透+2</li>
             <li><strong>杠:</strong> 4张同花色同点数 → 伤害x4, 范围x1.5</li>
             <li><strong>龙牌催化:</strong> 三元牌增强其他牌效果</li>
-            <li><strong>品质升级:</strong> 2张相同牌面 → 提升品质等级</li>
           </ul>
         </div>
 
@@ -168,7 +158,6 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
             }}>
               {storedTowers.map(tower => {
                 const isSelected = selectedTowerIds.includes(tower.id)
-                const borderColor = getQualityBorderColor(tower.quality)
                 
                 return (
                   <div
@@ -177,7 +166,7 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                     style={{
                       padding: '10px',
                       background: isSelected ? '#E3F2FD' : 'white',
-                      border: `3px solid ${isSelected ? '#2196F3' : borderColor}`,
+                      border: `3px solid ${isSelected ? '#2196F3' : getTileColor(tower)}`,
                       borderRadius: '6px',
                       cursor: 'pointer',
                       transition: 'all 0.2s',
@@ -222,16 +211,12 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                       {formatTileName(tower.tile)}
                     </div>
                     
-                    {/* 品质标识 */}
+                    {/* 属性信息 */}
                     <div style={{
                       fontSize: '10px',
-                      padding: '2px 6px',
-                      background: borderColor,
-                      color: 'white',
-                      borderRadius: '3px',
-                      display: 'inline-block'
+                      color: '#666'
                     }}>
-                      {formatQualityName(tower.quality)}
+                      伤害:{tower.damage} 范围:{tower.range}
                     </div>
                   </div>
                 )
@@ -264,7 +249,7 @@ export const SynthesisDialog: React.FC<SynthesisDialogProps> = ({
                     fontSize: '12px',
                     border: '1px solid #4CAF50'
                   }}>
-                    {formatTileName(tower.tile)} ({formatQualityName(tower.quality)})
+                    {formatTileName(tower.tile)}
                   </div>
                 )
               })}

@@ -2,7 +2,7 @@ import type { Enemy } from '../types/game'
 
 export const ENEMY_TYPES = {
   basic: {
-    health: 50,
+    health: 15,  // ✅ 初始血量提升约2倍
     speed: 60,
     armor: 0,
     magicResist: 0,
@@ -12,7 +12,7 @@ export const ENEMY_TYPES = {
     description: '普通敌人'
   },
   fast: {
-    health: 35,
+    health: 12,  // ✅ 快速敌人血量提升约2倍
     speed: 100,
     armor: 0,
     magicResist: 0,
@@ -22,7 +22,7 @@ export const ENEMY_TYPES = {
     description: '快速敌人'
   },
   tank: {
-    health: 150,
+    health: 35,  // ✅ 坦克敌人血量提升约2倍
     speed: 40,
     armor: 5,
     magicResist: 0.2,

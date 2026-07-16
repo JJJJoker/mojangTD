@@ -27,32 +27,38 @@ export type DragonTile = 'zhong' | 'fa' | 'bai'
 export type WindTile = 'dong' | 'nan' | 'xi' | 'bei'
 
 /**
+ * 花牌(梅兰竹菊,预留)
+ */
+export type FlowerTile = 'mei' | 'lan' | 'zhu' | 'ju'
+
+/**
+ * 五行属性(金木水火土)
+ */
+export type FiveElements = 'jin' | 'mu' | 'shui' | 'huo' | 'tu'
+
+/**
  * 麻将牌面
  */
 export interface MahjongTile {
-  suit?: MahjongSuit      // 数牌花色(万条筒)
+  suit?: MahjongSuit | 'kezi' | 'shunzi' | 'gang' | 'hongzhong' | 'facai' | 'baiban'      // 数牌花色(万条筒)或合成塔类型
   number?: MahjongNumber  // 点数1-9
-  dragon?: DragonTile     // 三元牌
-  wind?: WindTile         // 风牌
+  dragon?: DragonTile     // 三元牌(中发白)
+  wind?: WindTile         // 风牌(东南西北)
+  flower?: FlowerTile     // 花牌(梅兰竹菊,预留)
+  element?: FiveElements  // 五行属性(金木水火土)
 }
 
-/**
- * 塔品质(替代原GemLevel)
- * 生张→熟张→老张→绝张
- */
-export type TowerQuality = 'sheng' | 'shu' | 'lao' | 'jue'
 
 /**
  * 基础塔配置(使用麻将牌面)
  */
 export interface BaseTowerConfig {
   tile: MahjongTile       // 牌面
-  quality: TowerQuality   // 品质
   damage: number
   range: number
   attackSpeed: number
   damageType: 'physical' | 'magic' | 'pure'
-  multiTarget?: boolean
+  multiTarget?: number    // ✅ 同时攻击的目标数量
   splashRadius?: number
   slowEffect?: number
   critChance?: number
@@ -75,6 +81,20 @@ export type SpecialFanType =
   | 'sanyuan'       // 大三元(原jade)
   | 'sixi'          // 大四喜(原onyx)
 
+/**
+ * ✅ 新增: 胡牌番型类型
+ */
+export type HuFanType =
+  | 'lizhi'         // 立直: 攻速+10%
+  | 'duanyaojiu'    // 断幺九: 伤害+15%
+  | 'duiduihu'      // 对对和: 暴击率+20%
+  | 'qingyise_hu'   // 清一色: 伤害×2
+  | 'hunyise'       // 混一色: 范围×1.5
+  | 'xiaosanyuan'   // 小三元: 纯粹伤害
+  | 'dasanyuan'     // 大三元: 伤害×3
+  | 'xiaosixi'      // 小四喜: 攻速×1.5
+  | 'dasixi'        // 大四喜: 伤害×4
+
 // 敌人类
 export interface Enemy {
   id: string
@@ -92,6 +112,15 @@ export interface Enemy {
   slowTimer?: number   // 减速剩余时间(ms)
   isDead?: boolean     // 是否已死亡
   
+  // ✅ 新增: Debuff列表
+  debuffs?: Array<{
+    type: 'armor_reduction' | 'burn' | 'poison' | 'slow' | 'stun'
+    value: number         // 效果值(如护甲降低百分比、伤害值等)
+    duration: number      // 剩余持续时间(秒)
+    stacks?: number       // 叠加层数(用于毒素)
+    source?: string       // 来源塔ID(用于globalDebuff追踪)
+  }>
+  
   // 特效相关属性
   poisonEffects?: Array<{
     damage: number
@@ -106,17 +135,40 @@ export interface Enemy {
 export interface Tower {
   id: string
   tile: MahjongTile           // ✅ 改为tile
-  quality: TowerQuality       // ✅ 改为quality
   gridPosition: { row: number; col: number }
   position: Position
   damage: number
   range: number
-  attackSpeed: number         // 攻击间隔(ms)
+  attackSpeed: number         // 攻击速度(每秒攻击次数),冷却时间=1000/attackSpeed(ms)
   lastAttackTime: number
   damageType: 'physical' | 'magic' | 'pure'  // 伤害类型
   
+  // ✅ 新增: 灼烧效果(红中特性)
+  burnEffect?: {
+    damagePerSecond: number
+    duration: number      // 秒
+  }
+  
+  // ✅ 新增: 毒素增强(发财特性)
+  poisonEffect?: {
+    damagePercent: number // 主目标伤害的百分比
+    duration: number      // 秒
+    maxStacks: number     // 最大叠加层数
+    spreadOnDeath?: {
+      enabled: boolean
+      range: number       // 扩散范围
+    }
+  }
+  
+  // ✅ 新增: 减甲效果(白板特性)
+  armorReduction?: {
+    percent: number       // 护甲降低百分比
+    duration: number      // 秒
+    globalDebuff?: boolean // 是否全队共享debuff(仅白板杠有此属性)
+  }
+  
   // 特效属性
-  multiTarget?: boolean          // 多目标数量
+  multiTarget?: number           // ✅ 同时攻击的目标数量
   splashRadius?: number         // 溅射半径
   slowEffect?: number           // 减速效果
   critChance?: number           // 暴击率
@@ -127,6 +179,7 @@ export interface Tower {
   stunDuration?: number         // 眩晕持续时间(ms)
   pierce?: number              // 穿透数量
   targetId?: string             // 当前锁定目标
+  damageDealtThisWave?: number  // ✅ 本波造成的累计伤害
 }
 
 // 子弹类
@@ -134,6 +187,7 @@ export interface Bullet {
   id: string
   position: Position
   targetId: string
+  towerId?: string  // ✅ 来源塔ID(用于伤害统计)
   damage: number
   damageType: 'physical' | 'magic' | 'pure'
   speed: number
@@ -148,6 +202,19 @@ export interface Bullet {
   stunChance?: number
   stunDuration?: number
   pierce?: number
+}
+
+// ✅ 新增: 伤害飘字类型
+export interface FloatingDamage {
+  id: string
+  x: number          // 当前位置X
+  y: number          // 当前位置Y
+  startY: number     // 起始Y坐标
+  damage: number     // 伤害值
+  isCrit: boolean    // 是否暴击
+  isPure: boolean    // 是否纯粹伤害
+  startTime: number  // 开始时间
+  duration: number   // 持续时间(ms)
 }
 
 // 地图格子
@@ -175,7 +242,6 @@ export interface WaveConfig {
 
 // 游戏状态
 export interface GameState {
-  wood: number           // 木材(每波固定5个)
   gold: number           // 金币
   mineHealth: number     // 矿坑生命
   maxMineHealth: number  // 最大矿坑生命
@@ -189,11 +255,48 @@ export interface GameState {
   selectedGem: MahjongTile | null  // ✅ 当前选中的麻将牌面
   currentPath: { row: number; col: number }[] | null  // 当前BFS路径
   availableGems: MahjongTile[]  // ✅ 当前波可用的随机麻将牌
+  
+  // ✅ 新增: 胡牌检测相关
+  huTiles?: MahjongTile[]  // 场上所有用于胡牌检测的塔
+  globalBuffs?: GlobalBuff[]  // 全局增益效果
+  
+  // ✅ 新增: 伤害飘字
+  floatingDamages?: FloatingDamage[]
+}
+
+/**
+ * 全局增益效果
+ */
+export interface GlobalBuff {
+  type: HuFanType        // 番型名称
+  description: string    // 描述
+  active: boolean        // 是否激活
+  effect: {
+    damageMultiplier?: number   // 伤害倍率
+    attackSpeedBonus?: number   // 攻速加成
+    rangeMultiplier?: number    // 范围倍率
+    critChanceBonus?: number    // 暴击率加成
+    damagePercentBonus?: number // 伤害百分比加成
+  }
+}
+
+/**
+ * ✅ 新增: 胡牌番型配置类型
+ */
+export interface HuFanConfig {
+  name: string
+  description: string
+  effect: {
+    damageMultiplier?: number
+    attackSpeedBonus?: number
+    rangeMultiplier?: number
+    critChanceBonus?: number
+    damagePercentBonus?: number
+  }
 }
 
 // UI状态接口
 export interface UIState {
-  wood: number
   gold: number
   lives: number
   wave: number
@@ -203,5 +306,5 @@ export interface UIState {
   selectedTowerId: string | null
   storedTowerIds: string[]
   currentBatchTowerIds: string[]
-  gameLevel: number  // 游戏等级,影响塔生成概率
+
 }

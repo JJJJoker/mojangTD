@@ -1,6 +1,6 @@
 import React from 'react'
 import type { Tower } from '../types/game'
-import { formatTileName, formatQualityName } from '../config/towers'
+import { formatTileName } from '../config/towers'
 
 interface StoragePanelProps {
   storedTowers: Tower[]
@@ -16,12 +16,12 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
   // 获取麻将牌面颜色
   const getTileColor = (tower: Tower): string => {
     if (tower.tile.suit) {
-      const suitColors = {
+      const suitColors: Record<string, string> = {
         wan: '#E53935',  // 万子 - 红色
         tiao: '#43A047', // 条子 - 绿色
         tong: '#1E88E5'  // 筒子 - 蓝色
       }
-      return suitColors[tower.tile.suit]
+      return suitColors[tower.tile.suit] || '#333'
     }
     if (tower.tile.dragon) {
       const dragonColors = {
@@ -37,16 +37,7 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
     return '#9E9E9E'
   }
 
-  // 获取品质边框颜色
-  const getQualityBorderColor = (quality: string): string => {
-    const colors = {
-      sheng: '#8BC34A', // 生张 - 浅绿
-      shu: '#FF9800',   // 熟张 - 橙色
-      lao: '#F44336',   // 老张 - 红色
-      jue: '#9C27B0'    // 绝张 - 紫色
-    }
-    return colors[quality as keyof typeof colors] || '#9E9E9E'
-  }
+  // ❌ 删除品质边框颜色函数(已移除品质系统)
 
   return (
     <div style={{
@@ -80,7 +71,7 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
               style={{
                 padding: '10px',
                 background: 'white',
-                border: `2px solid ${getQualityBorderColor(tower.quality)}`,
+                border: `2px solid ${getTileColor(tower)}`,
                 borderRadius: '6px',
                 display: 'flex',
                 alignItems: 'center',
@@ -126,13 +117,9 @@ export const StoragePanel: React.FC<StoragePanelProps> = ({
                 </div>
                 <div style={{
                   fontSize: '10px',
-                  padding: '2px 6px',
-                  background: getQualityBorderColor(tower.quality),
-                  color: 'white',
-                  borderRadius: '3px',
-                  display: 'inline-block'
+                  color: '#666'
                 }}>
-                  {formatQualityName(tower.quality)}
+                  伤害: {tower.damage} | 范围: {tower.range}
                 </div>
               </div>
             </div>
