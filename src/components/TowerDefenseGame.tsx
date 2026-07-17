@@ -338,6 +338,12 @@ export const TowerDefenseGame: React.FC = () => {
   // ✅ 使用寻路Hook来计算路径
   const { calculatePath } = usePathfinding()
 
+  // ✅ 新增: 待确认放置状态
+  const [pendingPlacement, setPendingPlacement] = useState<{
+    gridPos: { row: number; col: number }
+    tile: MahjongTile | null
+  } | null>(null)
+
   // ✅ 移除旧的决策状态,改用uiState中的needsDecision和selectedTowerId
   const [showSynthesisDialog, setShowSynthesisDialog] = useState(false)
   const [showGuide, setShowGuide] = useState(false)  // ✅ 新增: 图鉴面板显示状态
@@ -913,7 +919,7 @@ export const TowerDefenseGame: React.FC = () => {
       return
     }
     
-    // 点击空地,执行放置逻辑 - 现有逻辑保持不变
+    // 点击空地,执行放置逻辑 - ✅ 修改为二次确认模式
     if (uiState.gameStatus !== 'preparing') return
     if (!uiState.canPlaceTowers) {
       console.warn('⏳ 当前波次尚未结束,请等待敌人全部消灭后再放置!')
@@ -922,15 +928,29 @@ export const TowerDefenseGame: React.FC = () => {
       return
     }
     
-    const towers = placeTower(gridPos)
-    if (towers && towers.length > 0) {
-      // ✅ placeTower不再自动设置needsDecision,等待玩家点击塔
-      console.log(`已放置第${uiState.placedCount}座塔`)
+    // ✅ 检查该位置是否为空
+    if (cell.type !== 'empty') {
+      console.warn('❌ 该位置已有塔或障碍物!')
+      return
     }
+    
+    // ✅ 从牌山抽取一张牌(但不立即放置)
+    const tile = gameStateRef.current.mahjongDeck.draw(1)[0]
+    if (!tile) {
+      alert('牌山已空!')
+      return
+    }
+    
+    // ✅ 设置待确认放置状态,而不是直接放置
+    setPendingPlacement({
+      gridPos,
+      tile
+    })
+    
+    console.log(`🔍 待确认放置: ${formatTileName(tile)} at (${gridPos.row}, ${gridPos.col})`)
   }, [
     uiState.gameStatus, 
     uiState.canPlaceTowers,
-    uiState.placedCount,
     placeTower,
     handleTowerClick,
     handleObstacleClick,
@@ -946,6 +966,45 @@ export const TowerDefenseGame: React.FC = () => {
       selectedTowerId: null
     }))
   }
+
+  /**
+   * ✅ 新增: 确认放置塔
+   */
+  const confirmPlacement = useCallback(() => {
+    if (!pendingPlacement) return
+    
+    const { gridPos, tile } = pendingPlacement
+    
+    console.log(`✅ 确认放置: ${formatTileName(tile!)} at (${gridPos.row}, ${gridPos.col})`)
+    
+    // ✅ 执行实际的放置逻辑,传入预抽取的牌
+    const towers = placeTower(gridPos, tile!)
+    
+    if (towers && towers.length > 0) {
+      console.log(`✅ 塔放置成功: ${formatTileName(tile!)}`)
+    } else {
+      console.error('❌ 塔放置失败')
+      alert('放置失败!')
+    }
+    
+    // ✅ 清除待确认状态
+    setPendingPlacement(null)
+  }, [pendingPlacement, placeTower])
+
+  /**
+   * ✅ 新增: 取消放置
+   */
+  const cancelPlacement = useCallback(() => {
+    if (!pendingPlacement) return
+    
+    // ✅ 将抽取的牌放回牌山
+    gameStateRef.current.mahjongDeck.returnToDeck([pendingPlacement.tile!])
+    
+    console.log('❌ 放置已取消,牌已返回牌山')
+    
+    // ✅ 清除待确认状态
+    setPendingPlacement(null)
+  }, [pendingPlacement])
 
   const handleStartWave = () => {
     startWave()
@@ -1023,6 +1082,7 @@ export const TowerDefenseGame: React.FC = () => {
           <GameCanvas 
             onClick={handleCanvasClick} 
             currentPath={gameStateRef.current.currentPath}
+            style={{ pointerEvents: pendingPlacement ? 'none' : 'auto' }}  // ✅ 禁用点击当确认对话框打开时
           />
           
           {/* ✅ 新增: 波次进行中禁止放置的提示 */}
@@ -2053,6 +2113,95 @@ export const TowerDefenseGame: React.FC = () => {
           to { opacity: 0; visibility: hidden; }
         }
       `}</style>
+      
+      {/* ✅ 新增: 放置确认对话框 */}
+      {pendingPlacement && pendingPlacement.tile && (
+        <div className="placement-confirm-overlay" style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: 'rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 1000
+        }}>
+          <div className="placement-confirm-dialog" style={{
+            background: '#fff',
+            borderRadius: '8px',
+            padding: '24px',
+            maxWidth: '400px',
+            width: '90%',
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)'
+          }}>
+            <h3 style={{ margin: '0 0 16px 0', textAlign: 'center', fontSize: '20px' }}>
+              🔍 确认放置
+            </h3>
+            
+            {/* 显示将要放置的牌 */}
+            <div style={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              marginBottom: '24px'
+            }}>
+              <MahjongTileIcon tile={pendingPlacement.tile} size="large" />
+              <p style={{ margin: '12px 0 0 0', fontSize: '16px', fontWeight: 'bold' }}>
+                {formatTileName(pendingPlacement.tile)}
+              </p>
+              <p style={{ margin: '4px 0 0 0', fontSize: '14px', color: '#666' }}>
+                位置: ({pendingPlacement.gridPos.row}, {pendingPlacement.gridPos.col})
+              </p>
+            </div>
+            
+            {/* 操作按钮 */}
+            <div style={{
+              display: 'flex',
+              gap: '12px',
+              justifyContent: 'center'
+            }}>
+              <button
+                onClick={cancelPlacement}
+                style={{
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  background: '#f44336',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#d32f2f'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#f44336'}
+              >
+                ❌ 取消
+              </button>
+              <button
+                onClick={confirmPlacement}
+                style={{
+                  padding: '12px 24px',
+                  fontSize: '16px',
+                  fontWeight: 'bold',
+                  background: '#4CAF50',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  transition: 'background 0.2s'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.background = '#45a049'}
+                onMouseOut={(e) => e.currentTarget.style.background = '#4CAF50'}
+              >
+                ✅ 确认放置
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

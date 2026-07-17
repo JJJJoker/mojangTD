@@ -161,9 +161,10 @@ export function useGameEngine() {
    * 4. 牌山不足时自动进入下一阶段并重置
    * 
    * @param gridPos - 格子坐标 {row, col}
+   * @param preDrawnTile - ✅ 新增: 预抽取的牌(用于二次确认),如果不传则从牌山抽取
    * @returns 新创建的塔数组,如果放置失败则返回null
    */
-  const placeTower = useCallback((gridPos: { row: number; col: number }) => {
+  const placeTower = useCallback((gridPos: { row: number; col: number }, preDrawnTile?: MahjongTile) => {
     // ✅ 添加调试日志
     console.log('🔍 placeTower检查:', {
       gameStatus: uiState.gameStatus,
@@ -212,12 +213,18 @@ export function useGameEngine() {
       // TODO: 增强敌人数值(后续实现)
     }
     
-    // ✅ 从牌山抽取1张牌(而非5张)
-    const drawnTiles = mahjongDeck.draw(1)
-    const tile = drawnTiles[0]
-    
-    console.log(`🀄 抽取第${gameStateRef.current.placedCount + 1}张牌: ${formatTileName(tile)}`)
-    console.log(`   牌山剩余: ${mahjongDeck.remaining()}张, 当前阶段: ${mahjongDeck.getPhase()}`)
+    // ✅ 从牌山抽取1张牌(或使用预抽取的牌)
+    let tile: MahjongTile
+    if (preDrawnTile) {
+      // ✅ 使用预抽取的牌(二次确认场景)
+      tile = preDrawnTile
+      console.log(`🀄 使用预抽取的牌: ${formatTileName(tile)}`)
+    } else {
+      // ✅ 正常抽取
+      const drawnTiles = mahjongDeck.draw(1)
+      tile = drawnTiles[0]
+      console.log(`🀄 抽取第${gameStateRef.current.placedCount + 1}张牌: ${formatTileName(tile)}`)
+    }
     
     // ✅ 创建单个塔
     const stats = getTowerStats(tile)
